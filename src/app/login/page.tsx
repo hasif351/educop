@@ -12,8 +12,8 @@ const DEMO = [
   ["Teacher, second school", "omar.farouk@palmgrove.example"],
 ];
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
-  const { next } = await searchParams;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; ended?: string }> }) {
+  const { next, ended } = await searchParams;
   const showDemo = process.env.NODE_ENV !== "production" || process.env.SHOW_DEMO_ACCOUNTS === "true";
   return (
     <div className="grid min-h-screen lg:grid-cols-[5fr_7fr]">
@@ -32,6 +32,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <h2 className="text-2xl">Sign in</h2>
           <p className="text-muted">Use the account your school gave you.</p>
         </div>
+        {ended && <p className="rounded-lg bg-warn-soft p-3 text-sm text-warn" role="status">Your session ended because your account or school is no longer active. Contact your school if this is unexpected.</p>}
         <LoginForm next={next} />
         {showDemo && (
           <div className="card">

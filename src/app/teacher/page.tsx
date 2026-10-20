@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { teacherDashboard } from "@/lib/data";
+import { db } from "@/lib/db";
 import { percent } from "@/lib/grading";
+import { classStats } from "@/lib/teacher-insights";
+import { draftTitle, SOURCE_LABEL, type AiTool, type StoredDraft } from "@/lib/ai-teacher";
 import { Bar, Chip, Empty, fmtDate, fmtTime } from "@/components/ui";
 import { ReviewButtons } from "./ReviewButtons";
 
@@ -9,7 +12,15 @@ export const metadata = { title: "Teacher dashboard" };
 
 export default async function TeacherDashboard() {
   const s = await requireRole("TEACHER");
-  const d = await teacherDashboard(s);
+  const [d, stats, drafts, draftCount] = await Promise.all([
+    teacherDashboard(s),
+    classStats(s),
+    db.aiDraft.findMany({ where: { schoolId: s.schoolId, teacherId: s.userId, status: "DRAFT" }, orderBy: { createdAt: "desc" }, take: 3 }),
+    db.aiDraft.count({ where: { schoolId: s.schoolId, teacherId: s.userId, status: "DRAFT" } }),
+  ]);
+  // Objectives with the lowest average across this teacher's classes.
+  const attention = stats.flatMap((c) => c.objectives.filter((o) => o.avgPct != null).map((o) => ({ ...o, cls: c })))
+    .sort((a, b) => a.avgPct! - b.avgPct!).slice(0, 3);
   const first = s.name.split(" ")[0];
   const students = d.classes.reduce((t, c) => t + c._count.enrollments, 0);
 
@@ -22,6 +33,7 @@ export default async function TeacherDashboard() {
           <p className="text-muted">{d.today.length} lesson{d.today.length === 1 ? "" : "s"} today · {d.classes.length} classes · {students} students</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link className="btn" href="/teacher/ai">Plan with AI</Link>
           <Link className="btn" href="/teacher/lessons/new">New lesson</Link>
           <Link className="btn-primary" href="/teacher/assignments/new">New assignment</Link>
         </div>
@@ -85,7 +97,7 @@ export default async function TeacherDashboard() {
         </section>
 
         <section className="card">
-          <h2 className="text-lg">Suggestions to review</h2>
+          <div className="flex items-center justify-between gap-2"><h2 className="text-lg">Suggestions to review</h2><Link className="btn btn-sm" href="/teacher/recommendations">All recommendations</Link></div>
           <p className="text-xs text-muted">Stretch activities wait for your approval before students see them.</p>
           {d.reviews.length === 0 ? <Empty title="All reviewed" body="New suggestions appear after marking." /> : (
             <ul className="flex flex-col gap-3">
@@ -100,7 +112,49 @@ export default async function TeacherDashboard() {
           )}
         </section>
 
-        <section className="card lg:col-span-3">
+        <section className="card lg:col-span-2">
+          <div className="flex items-center justify-between gap-2"><h2 className="text-lg">Objectives needing attention</h2><Link className="btn btn-sm" href="/teacher/progress">Student progress</Link></div>
+          {attention.length === 0 ? <Empty title="No objective data yet" body="Add outcome codes to lessons and link assignments to them to see mastery by objective." /> : (
+            <ul className="flex flex-col divide-y divide-line">
+              {attention.map((o) => (
+                <li key={`${o.cls.id}-${o.code}`} className="flex flex-wrap items-center gap-3 py-2.5 text-sm first:pt-0 last:pb-0">
+                  <div className="min-w-0 flex-1"><b>{o.code} {o.title}</b><div className="text-xs text-muted">{o.cls.name} · {o.secure}/{o.withData} students secure</div></div>
+                  <div className="flex w-32 items-center gap-2"><Bar value={o.avgPct!} /><span className="tnum w-9 text-right text-xs">{o.avgPct}%</span></div>
+                  <Link className="btn btn-sm" href={`/teacher/progress?class=${o.cls.id}`}>Review</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="text-xs text-muted">Class average on each lesson outcome code, from marked work and knowledge checks.</p>
+        </section>
+
+        <section className="card">
+          <div className="flex items-center justify-between gap-2"><h2 className="text-lg">AI drafts awaiting you</h2><Chip tone="blue">{draftCount}</Chip></div>
+          {drafts.length === 0 ? <Empty title="No drafts waiting" body="Draft a lesson plan, quiz, feedback or parent note." /> : (
+            <ul className="flex flex-col gap-2 text-sm">
+              {drafts.map((x) => {
+                const out = x.output as unknown as StoredDraft;
+                return <li key={x.id}><Link className="font-bold hover:underline" href={`/teacher/ai/${x.id}`}>{draftTitle(x.tool as AiTool, out.content, out.input?.topic ?? "")}</Link><div className="text-xs text-muted">{SOURCE_LABEL[out.source] ?? SOURCE_LABEL.template}</div></li>;
+              })}
+            </ul>
+          )}
+          <Link className="btn btn-sm self-start" href="/teacher/ai">Open assistant</Link>
+        </section>
+
+        <section className="card">
+          <h2 className="text-lg">My classes</h2>
+          <ul className="flex flex-col divide-y divide-line text-sm">
+            {stats.map((c) => (
+              <li key={c.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                <Link className="min-w-0 flex-1 hover:underline" href={`/teacher/progress?class=${c.id}`}><b>{c.name}</b><div className="text-xs text-muted">{c.students.length} students</div></Link>
+                <span className="tnum text-xs">{c.avgPct == null ? "–" : `${c.avgPct}% avg`}</span>
+              </li>
+            ))}
+          </ul>
+          <Link className="btn btn-sm self-start" href="/teacher/progress">Student progress</Link>
+        </section>
+
+        <section className="card lg:col-span-2">
           <h2 className="text-lg">Students who may need support</h2>
           <p className="text-xs text-muted">From marked work below 60%. A starting point for a check-in, not a judgement.</p>
           {d.needsSupport.length === 0 ? <Empty title="No one flagged" body="Everyone's recent marked work is at 60% or above." /> : (

@@ -8,6 +8,8 @@ import { requireRole } from "@/lib/auth";
 import { autoScore, daysLate, lateCheck } from "@/lib/grading";
 import { finalizeScore } from "@/lib/submit";
 import { audit } from "@/lib/audit";
+import { award } from "@/lib/points";
+import { checkStreakBadge } from "@/lib/gamify";
 
 const Step = z.object({ lessonId: z.string().min(1), step: z.number().int().min(0).max(7), correct: z.number().int().min(0).optional(), total: z.number().int().min(0).optional() });
 
@@ -25,6 +27,8 @@ export async function completeLessonStep(input: z.infer<typeof Step>) {
     create: { lessonId, studentId: s.userId, completedSteps: steps, checkCorrect: correct ?? 0, checkTotal: total ?? 0, completedAt: done ? new Date() : null },
     update: { completedSteps: steps, ...(total != null ? { checkCorrect: correct ?? 0, checkTotal: total } : {}), completedAt: done ? (existing?.completedAt ?? new Date()) : null },
   });
+  if (done) await award(s.userId, s.schoolId, 10, "Finished a lesson", `lesson:${lessonId}`, "first_lesson");
+  await checkStreakBadge(s.userId, s.schoolId);
   revalidatePath("/student");
   return { steps, done };
 }
@@ -83,6 +87,7 @@ export async function saveOrSubmit(assignmentId: string, _: SubmitState, form: F
   await db.submission.update({ where: { id: sub.id }, data: { status: "SUBMITTED", submittedAt: now, daysLate: late } });
   await finalizeScore(sub.id);
   await audit(s, "assignment.submit", a.id, { late });
+  await award(s.userId, s.schoolId, 10, "Handed in an assignment", `assignment:${a.id}`);
   revalidatePath("/student");
   redirect(`/student/assignments/${a.id}?submitted=1`);
 }

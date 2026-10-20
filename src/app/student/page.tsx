@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { studentDashboard } from "@/lib/data";
+import { progressSummary } from "@/lib/data-student-modules";
+import { BADGES } from "@/lib/points";
 import { percent } from "@/lib/grading";
 import { Bar, Chip, Empty, fmtDate, fmtTime, scoreTone } from "@/components/ui";
 
@@ -10,7 +12,7 @@ const KIND_LABEL: Record<string, string> = { REVIEW: "Review", PRACTICE: "Practi
 
 export default async function StudentDashboard() {
   const s = await requireRole("STUDENT");
-  const d = await studentDashboard(s);
+  const [d, p] = await Promise.all([studentDashboard(s), progressSummary(s)]);
   const first = s.name.split(" ")[0];
   const now = new Date();
   const lessonsLeft = d.todayLessons.filter((l) => !l.progress[0]?.completedAt).length;
@@ -24,6 +26,10 @@ export default async function StudentDashboard() {
           <p className="text-muted">
             {lessonsLeft ? `${lessonsLeft} lesson${lessonsLeft > 1 ? "s" : ""} left today` : "All of today's lessons are done"} · {d.pending.length} assignment{d.pending.length === 1 ? "" : "s"} to do
           </p>
+        </div>
+        <div className="flex flex-wrap gap-2" aria-label="My progress">
+          <span className="chip bg-surface px-3 py-1.5 text-sm text-warn">🔥 {p.streak}-day streak</span>
+          <span className="chip bg-surface px-3 py-1.5 text-sm text-brand">⭐ {p.points} pts</span>
         </div>
       </section>
 
@@ -100,6 +106,31 @@ export default async function StudentDashboard() {
             ))}
           </ul>
           <p className="text-xs text-muted">Average of marked work. It shows what you&apos;ve practised, not how clever you are.</p>
+        </section>
+
+        <section className="card">
+          <div className="flex items-center justify-between"><h2 className="text-lg">Achievements</h2><Link className="btn btn-sm" href="/student/for-you">My points</Link></div>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <div><div className="tnum font-display text-2xl font-bold">{p.points}</div><div className="text-xs text-muted">points</div></div>
+            <div><div className="tnum font-display text-2xl font-bold">{p.streak}</div><div className="text-xs text-muted">day streak</div></div>
+            <div><div className="tnum font-display text-2xl font-bold">{p.badges.length}</div><div className="text-xs text-muted">badges</div></div>
+          </div>
+          {p.badges.length > 0 && <div className="flex flex-wrap gap-1.5">{p.badges.map((b) => <Chip key={b} tone="teal">🏅 {BADGES[b]?.label ?? b}</Chip>)}</div>}
+          <p className="text-xs text-muted">Rewarding effort and improvement. No leaderboards.</p>
+        </section>
+
+        <section className="card">
+          <h2 className="text-lg">Keep growing</h2>
+          <ul className="grid grid-cols-2 gap-2 text-sm">
+            {[
+              ["/student/skills", "Reasoning skills", "Puzzle practice"],
+              ["/student/growth", "My growth", "Check-in and goals"],
+              ["/student/for-you", "For you", "Suggestions"],
+              ["/student/buddy", "Study buddy", "Ask Nova for a hint"],
+            ].map(([href, label, sub]) => (
+              <li key={href}><Link href={href} className="flex h-full flex-col rounded-lg bg-surface-2 p-3 hover:bg-brand-soft"><b>{label}</b><span className="text-xs text-muted">{sub}</span></Link></li>
+            ))}
+          </ul>
         </section>
 
         <section className="card">

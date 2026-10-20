@@ -34,6 +34,17 @@ const P = {
   info: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7h.01",
   send: "M4 12 20 4l-6 16-3-7z",
   mail: "M3 5h18v14H3zM3 6l9 7 9-7",
+  film: "M4 4h16v16H4zM8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4",
+  pause: "M7 5h3v14H7zM14 5h3v14h-3z",
+  rewind: "M11 7 5 12l6 5zM19 7l-6 5 6 5z",
+  forward: "M13 7l6 5-6 5zM5 7l6 5-6 5z",
+  volume: "M4 9h4l5-4v14l-5-4H4zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11",
+  mute: "M4 9h4l5-4v14l-5-4H4zM17 9l5 6M22 9l-5 6",
+  cc: "M3 6h18v12H3zM10.5 10a2.5 2.5 0 1 0 0 4M17.5 10a2.5 2.5 0 1 0 0 4",
+  expand: "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5",
+  shrink: "M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5",
+  pip: "M3 5h18v14H3zM12 12h7v5h-7z",
+  keyboard: "M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M8 14h8",
 } as const;
 
 export type IconName = keyof typeof P;
@@ -48,7 +59,7 @@ export function Icon({ name, className = "" }: { name: IconName; className?: str
 
 /** Icon for a nav route, by its last path segment (the role home is "home"). */
 const BY_SEGMENT: Record<string, IconName> = {
-  lessons: "play", assignments: "clip", skills: "brain", growth: "heart", "for-you": "spark", buddy: "chat", live: "video",
+  lessons: "play", assignments: "clip", skills: "brain", growth: "heart", "for-you": "spark", buddy: "chat", live: "video", recordings: "film",
   ai: "spark", progress: "target", recommendations: "layers", messages: "mail", "home-learning": "spark",
   users: "users", classes: "book", approvals: "flag", reports: "chart", moderation: "shield", school: "school",
   schools: "school", "ai-usage": "chart", audit: "lock", notifications: "bell", settings: "gear",

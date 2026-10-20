@@ -24,6 +24,7 @@ export const NAV: Record<Role, { href: string; label: string }[]> = {
     { href: "/student/for-you", label: "For you" },
     { href: "/student/buddy", label: "Study buddy" },
     { href: "/student/live", label: "Live class" },
+    { href: "/student/recordings", label: "Recorded classes" },
     ...own("STUDENT"),
   ],
   TEACHER: [
@@ -34,6 +35,7 @@ export const NAV: Record<Role, { href: string; label: string }[]> = {
     { href: "/teacher/progress", label: "Student progress" },
     { href: "/teacher/recommendations", label: "Recommendations" },
     { href: "/teacher/live", label: "Virtual classroom" },
+    { href: "/teacher/recordings", label: "Recorded classes" },
     { href: "/teacher/messages", label: "Messages" },
     ...own("TEACHER"),
   ],

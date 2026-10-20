@@ -3,6 +3,7 @@ import { seedStudent } from "./student";
 import { seedTeacher } from "./teacher";
 import { seedComms } from "./comms";
 import { seedAdmin } from "./admin";
+import { seedRecordings } from "./recordings";
 
 /**
  * Demo data for every module beyond the MVP core. Finds people by their demo
@@ -17,6 +18,7 @@ export async function seedModules(db: PrismaClient) {
   await seedTeacher(db);
   await seedComms(db);
   await seedAdmin(db);
+  await seedRecordings(db);
 }
 
 /** Layla shares her latest happy check-in with her parent, so the parent portal shows the feature. */

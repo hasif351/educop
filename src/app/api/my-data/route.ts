@@ -12,7 +12,7 @@ export async function GET() {
   const me = { userId: id };
   const [
     user, notifications, consents, messagesSent, messagesReceived, submissions, lessonProgress, recommendations,
-    cognitiveSessions, selCheckins, selGoals, pointEvents, badges, aiMessages, aiDrafts, liveAttendance, liveChat, links, activity,
+    cognitiveSessions, selCheckins, selGoals, pointEvents, badges, aiMessages, aiDrafts, liveAttendance, liveChat, recordingViews, links, activity,
   ] = await Promise.all([
     db.user.findUniqueOrThrow({
       where: { id },
@@ -34,6 +34,7 @@ export async function GET() {
     db.aiDraft.findMany({ where: { teacherId: id } }),
     db.liveAttendance.findMany({ where: me, include: { session: { select: { title: true, startsAt: true } } } }),
     db.liveChat.findMany({ where: me }),
+    db.recordingView.findMany({ where: { studentId: id }, include: { recording: { select: { title: true } } } }),
     db.parentStudent.findMany({ where: { OR: [{ parentId: id }, { studentId: id }] }, select: { parentId: true, studentId: true, verified: true, createdAt: true } }),
     db.auditLog.findMany({ where: { actorId: id }, select: { action: true, target: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 1000 }),
   ]);
@@ -43,7 +44,7 @@ export async function GET() {
     note: "Records Educop holds about you. Passwords are never included.",
     user, consents, notifications, messages: { sent: messagesSent, received: messagesReceived }, parentLinks: links,
     learning: { submissions, lessonProgress, recommendations, cognitiveSessions, pointEvents, badges },
-    wellbeing: { selCheckins, selGoals }, ai: { aiMessages, aiDrafts }, liveClasses: { liveAttendance, liveChat }, activity,
+    wellbeing: { selCheckins, selGoals }, ai: { aiMessages, aiDrafts }, liveClasses: { liveAttendance, liveChat }, recordedClasses: recordingViews, activity,
   };
   return new NextResponse(JSON.stringify(body, null, 2), {
     headers: {

@@ -134,6 +134,8 @@ model User {
   liveSessions      LiveSession[]
   liveAttendance    LiveAttendance[]
   liveChat          LiveChat[]
+  recordings        Recording[]
+  recordingViews    RecordingView[]
 
   @@index([schoolId, role])
 }
@@ -176,6 +178,7 @@ model Class {
   enrollments    Enrollment[]
   lessons        Lesson[]
   assignments    Assignment[]
+  recordings     Recording[]
 
   @@index([schoolId])
   @@index([teacherId])
@@ -220,6 +223,7 @@ model Lesson {
 
   progress    LessonProgress[]
   assignments Assignment[]
+  recordings  Recording[]
 
   @@index([schoolId, classId, scheduledFor])
 }
@@ -532,6 +536,7 @@ model LiveSession {
   attendance LiveAttendance[]
   chat       LiveChat[]
   polls      LivePoll[]
+  recordings Recording[]
 
   @@index([schoolId, classId, startsAt])
 }
@@ -570,4 +575,56 @@ model LivePoll {
   open      Boolean     @default(true)
   votes     Json        @default("{}") // { userId: optionIndex }
   createdAt DateTime    @default(now())
+}
+
+// Recorded classes: a video with captions, chapters and in-video questions.
+// chapters: [{ t: seconds, title }]
+// questions: [{ id, t: seconds, prompt, options[], answerIndex, explanation }]
+model Recording {
+  id            String        @id @default(cuid())
+  schoolId      String
+  classId       String
+  class         Class         @relation(fields: [classId], references: [id])
+  teacherId     String
+  teacher       User          @relation(fields: [teacherId], references: [id])
+  lessonId      String?
+  lesson        Lesson?       @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  liveSessionId String?
+  liveSession   LiveSession?  @relation(fields: [liveSessionId], references: [id], onDelete: SetNull)
+  title         String
+  description   String        @default("")
+  videoUrl      String
+  source        String // upload | link | demo
+  durationSec   Int?
+  posterUrl     String?
+  captionsVtt   String? // WebVTT text
+  chapters      Json          @default("[]")
+  questions     Json          @default("[]")
+  status        ContentStatus @default(DRAFT)
+  publishedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  views RecordingView[]
+
+  @@index([schoolId, classId])
+}
+
+// One row per student per recording. watched holds merged [start, end] second
+// ranges, so skipping ahead never counts as watching.
+// answers: { questionId: { choice, correct, attempts } }
+model RecordingView {
+  recordingId String
+  recording   Recording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User      @relation(fields: [studentId], references: [id])
+  positionSec Float     @default(0)
+  watched     Json      @default("[]")
+  watchedPct  Int       @default(0)
+  answers     Json      @default("{}")
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@id([recordingId, studentId])
+  @@index([studentId])
 }

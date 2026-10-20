@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "./db";
 import { dayBounds, studentDashboard } from "./data";
 import { weekStart } from "./data-admin";
+import { childRecordingSummary } from "./data-recordings";
 import type { SessionPayload } from "./session";
 
 // Parent reads. A parent only ever sees children with a VERIFIED link in the
@@ -40,12 +41,13 @@ export async function childOverview(s: S, childId: string) {
   const d = await studentDashboard({ ...s, userId: child.id, role: "STUDENT" });
   const classIds = d.classes.map((c) => c.id);
   const now = new Date();
-  const [live, attended, wellbeing, badges] = await Promise.all([
+  const [live, attended, wellbeing, badges, recordings] = await Promise.all([
     db.liveSession.findMany({ where: { schoolId: s.schoolId, classId: { in: classIds }, OR: [{ status: "ENDED" }, { startsAt: { lt: now }, status: { not: "SCHEDULED" } }] }, select: { id: true }, orderBy: { startsAt: "desc" }, take: 50 }),
     db.liveAttendance.findMany({ where: { userId: child.id, session: { schoolId: s.schoolId, classId: { in: classIds } } }, select: { sessionId: true } }),
     // Only entries the child chose to share with their parents.
     db.selCheckin.findMany({ where: { schoolId: s.schoolId, studentId: child.id, sharedWithParent: true }, select: { id: true, mood: true, feelings: true, note: true, scenario: true, response: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 5 }),
     db.studentBadge.findMany({ where: { studentId: child.id }, orderBy: { earnedAt: "desc" }, take: 6 }),
+    childRecordingSummary(s.schoolId, child.id, classIds),
   ]);
   const upcoming = await db.liveSession.findMany({
     where: { schoolId: s.schoolId, classId: { in: classIds }, status: { in: ["SCHEDULED", "LIVE"] }, startsAt: { gte: dayBounds().start } },
@@ -60,7 +62,7 @@ export async function childOverview(s: S, childId: string) {
     missing: d.pending.filter((a) => a.dueAt < now),
     graded: graded.map((g) => ({ ...g, teacher: teacherOf.get(g.assignment.classId) ?? null })),
     live: { held: live.length, attended: attended.filter((a) => liveIds.has(a.sessionId)).length, upcoming },
-    wellbeing, badges,
+    wellbeing, badges, recordings,
   };
 }
 

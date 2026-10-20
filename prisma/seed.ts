@@ -29,6 +29,7 @@ async function main() {
   }
   // Clear in dependency order so the seed can be re-run.
   await db.$transaction([
+    db.recordingView.deleteMany(), db.recording.deleteMany(),
     db.liveAttendance.deleteMany(), db.liveChat.deleteMany(), db.livePoll.deleteMany(), db.liveSession.deleteMany(),
     db.notification.deleteMany(), db.consent.deleteMany(), db.message.deleteMany(), db.moderationItem.deleteMany(),
     db.cognitiveSession.deleteMany(), db.selCheckin.deleteMany(), db.selGoal.deleteMany(),

@@ -21,7 +21,8 @@ export default async function TeacherLiveSession({ params }: { params: Promise<{
   if (session.status === "ENDED") return (
     <>
       <PageHeader eyebrow={`Class ended${session.endedAt ? ` · ${fmtTime(session.endedAt)}` : ""} · ${session.cls.name}`} title={`Class summary: ${session.title}`} sub={when}
-        actions={<Link className="btn" href="/teacher/live">Back to virtual classroom</Link>} />
+        actions={<><Link className="btn-primary" href={`/teacher/recordings/new?live=${session.id}`}><Icon name="film" /> Add the class recording</Link><Link className="btn" href="/teacher/live">Back to virtual classroom</Link></>} />
+      <p className="text-sm text-muted">Recorded the class in Teams or Meet? Download the recording, then add it with “Add the class recording” so students can watch it with captions, chapters and questions.</p>
       <AttendanceReport sessionId={session.id} classId={session.classId} />
     </>
   );

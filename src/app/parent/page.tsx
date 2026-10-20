@@ -161,6 +161,9 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
             </>
           )}
           <p className="text-xs text-muted">Based on joining the online class. School attendance is recorded separately by the school.</p>
+          {d.recordings.published > 0 && (
+            <p className="border-t border-line pt-3 text-sm">Recorded classes: watched <b className="tnum">{d.recordings.watched}</b> of <b className="tnum">{d.recordings.published}</b>, <b className="tnum">{d.recordings.completed}</b> completed.</p>
+          )}
         </section>
 
         <section className="card">

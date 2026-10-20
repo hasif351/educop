@@ -19,6 +19,7 @@ Educop is an AI-powered KG–12 learning platform. This app covers the MVP core 
 - **Everyone:** a sidebar app shell, in-app notifications for real events, and settings and privacy (profile, password, accessibility, notification choices, parent consents per child, download my data, deletion request).
 - **Parent–teacher messages:** each conversation is about one child. Messages containing contact details are held for moderation.
 - **Virtual classroom:** schedule, start and end live classes, with attendance, raise hand, moderated chat and live polls. Video uses an embedded Jitsi Meet room.
+- **Recorded classes:** teachers share class videos (uploaded, linked or recorded in Teams/Meet and uploaded afterwards) with captions, chapters and in-video questions. Students watch in a custom player and their real watching is tracked; teachers see watched %, completion, question results and where students stop watching.
 - **Parent portal:** a child switcher and per-child overview, plus a home learning page with a "we did this" tick.
 - **School admin:** overview, people (add, deactivate, parent links, CSV roster import with a dry run), classes and subjects, lesson approvals, reports with CSV export, moderation, and school settings.
 - **Platform admin:** schools and organisations (add a school with its first admin, suspend, plan and seats), AI usage, moderation across schools, and the audit log.
@@ -91,6 +92,7 @@ src/lib/auth.ts             requireRole(): server-side guard used by every page 
 src/lib/data.ts             ALL reads: scoped by schoolId + relationship (enrolled / teaches / parent of)
 src/lib/grading.ts          pure marking rules (auto-mark, late days, penalty, totals)
 src/lib/recommend.ts        pure recommendation rules with evidence
+src/lib/recordings.ts       pure recorded-class rules: video links, watched ranges, captions
 src/lib/submit.ts           re-scores a submission and triggers recommendations once
 src/app/student/…           dashboard, lessons, lesson player, assignments
 src/app/teacher/…           dashboard, lesson editor, assignment builder, gradebook, marking
@@ -128,6 +130,15 @@ Each suggestion stores its evidence ("Comparing fractions quiz: 4/10 (40%)") and
 - zod validation and length limits on all input, and server actions protected by Next.js origin checks
 - Audit log for sign-ins, content changes, submissions, marking and recommendation decisions
 - Security headers (frame-deny, nosniff, referrer and permissions policy)
+
+## Recorded classes
+
+Teachers add a recording at **Recorded classes → New recording**, or from an ended live class with "Add the class recording". A recording has a video, optional WebVTT captions (or plain lines like `00:12 text`, converted to WebVTT), chapters and multiple-choice questions at set times.
+
+- **Video source.** With `BLOB_READ_WRITE_TOKEN` set (connect a Vercel Blob store to the project), teachers upload `.mp4`, `.webm` or `.mov` files up to 2 GB straight from the browser to Blob storage. `/api/recordings/upload` only issues upload tokens to signed-in teachers. Uploaded files get a random, unguessable name, but Blob URLs are public, so don't upload anything that must stay private. Without the token, upload is hidden and teachers paste an https link that goes straight to a video file. YouTube, Teams and Drive pages aren't video files and are refused with an explanation. The seeded demo uses a short fictional lesson video in `public/media/`.
+- **Player** (`src/components/media/VideoPlayer.tsx`): custom controls (seek bar with buffered range, chapter and question markers, speed, volume, captions, full screen, picture-in-picture), keyboard shortcuts, chapters and a transcript you can click to jump.
+- **Questions** pause the video. Students can't seek past a question they haven't answered. Answers are checked on the server, so the answer key never reaches the browser first.
+- **Progress** is saved about every 10 seconds and on pause, end and leaving the page. "Watched" is the merged set of seconds actually played, so skipping ahead doesn't count, and one save can only add about as much as the time that has passed. At 90% watched with every question answered, the video is complete and the student earns 15 points.
 
 ## AI
 

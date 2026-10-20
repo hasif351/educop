@@ -95,12 +95,11 @@ export default async function StudentProgressPage({ params }: { params: Promise<
               <b>Shared check-ins</b>
               {shared.length === 0 ? <span className="text-muted">Nothing shared with you.</span> : (
                 <ul className="flex flex-col gap-1.5">
-                  {shared.map((c) => <li key={c.id}><span className="text-xs text-muted">{fmtDate(c.createdAt)}</span> · {MOOD[c.mood] ?? c.mood}{c.feelings.length ? ` · ${c.feelings.join(", ")}` : ""}{c.note ? <div className="text-xs">“{c.note}”</div> : null}</li>)}
+                  {shared.map((c) => <li key={c.id}><span className="text-xs text-muted">{fmtDate(c.createdAt)}</span> · {c.mood > 0 ? MOOD[c.mood] ?? c.mood : "Reflection"}{c.feelings.length ? ` · ${c.feelings.join(", ")}` : ""}{c.note ? <div className="text-xs">“{c.note}”</div> : null}</li>)}
                 </ul>
               )}
             </div>
           </div>
-          <p className="text-xs text-muted">Fuller skills and wellbeing summaries will appear here when those modules are connected.</p>
         </section>
       </div>
     </>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { classStats } from "@/lib/teacher-insights";
+import { classSelSummary, classSkillsSummary } from "@/lib/data-student-modules";
 import { Chip, Empty, PageHeader, scoreTone } from "@/components/ui";
 import { HeatCell, HeatLegend, TREND_LABEL } from "./Heat";
 
@@ -13,6 +14,7 @@ export default async function TeacherProgress({ searchParams }: { searchParams: 
   if (all.length === 0) return (<><PageHeader eyebrow="Student progress" title="Student progress" /><Empty title="No students yet" body="Progress appears once students are enrolled in your classes." /></>);
   const c = all.find((x) => x.id === sp.class) ?? all[0];
   const support = c.students.filter((st) => st.reasons.length > 0);
+  const [sel, skills] = await Promise.all([classSelSummary(s, c.id), classSkillsSummary(s, c.id)]);
 
   return (
     <>
@@ -84,6 +86,31 @@ export default async function TeacherProgress({ searchParams }: { searchParams: 
               </tbody>
             </table>
           )}
+        </section>
+
+        <section className="card lg:col-span-2" aria-labelledby="skills-h">
+          <h2 id="skills-h" className="text-lg">Reasoning skills practice</h2>
+          <p className="text-xs text-muted">Last {skills.days} days. Practice for growth, not a measure of ability. Class figures appear once {skills.minGroup} or more students have practised a skill.</p>
+          <ul className="flex flex-col gap-2 text-sm">
+            {skills.domains.map((d) => (
+              <li key={d.domain} className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-bold">{d.label}</span>
+                <span className="tnum text-muted">{d.sets} set{d.sets === 1 ? "" : "s"} · {d.students} student{d.students === 1 ? "" : "s"}{d.solvedPct != null ? ` · ${d.solvedPct}% of puzzles solved` : ""}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="card" aria-labelledby="wellbeing-h">
+          <h2 id="wellbeing-h" className="text-lg">Class wellbeing</h2>
+          <p className="text-xs text-muted">Last {sel.days} days, anonymous. Shown only when {sel.minGroup} or more students checked in.</p>
+          {sel.aggregate ? (
+            <div className="flex flex-col gap-1 text-sm">
+              <span className="tnum">Average mood {sel.aggregate.averageMood} / 5 from {sel.aggregate.students} students</span>
+              {sel.aggregate.topFeelings.length > 0 && <ul className="flex flex-wrap gap-1.5">{sel.aggregate.topFeelings.map((f) => <li key={f.feeling}><Chip>{f.feeling} · {f.count}</Chip></li>)}</ul>}
+            </div>
+          ) : <p className="text-sm text-muted">Not enough check-ins yet to show a class picture.</p>}
+          <p className="text-sm"><b className="tnum">{sel.shared.length}</b> check-in{sel.shared.length === 1 ? "" : "s"} shared with you. Open a student to read theirs.</p>
         </section>
       </div>
     </>

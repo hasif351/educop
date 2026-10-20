@@ -3,6 +3,6 @@
   "framework": "nextjs",
   "buildCommand": "npm run vercel-build",
   "regions": [
-    "dxb1"
+    "fra1"
   ]
 }

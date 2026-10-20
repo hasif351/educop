@@ -130,4 +130,4 @@ Each suggestion stores its evidence ("Comparing fractions quiz: 4/10 (40%)") and
 
 ## Deployment notes
 
-Any Node host with PostgreSQL works (for example a managed Postgres plus a container or Node service). Run `npx prisma migrate deploy` on release, set `NODE_ENV=production`, `DATABASE_URL` and a strong `SESSION_SECRET`, and keep the database and app in a UAE or GCC region if the school requires data residency. `/api/health` returns 200 when the app can reach the database.
+Any Node host with PostgreSQL works (for example a managed Postgres plus a container or Node service). Run `npx prisma migrate deploy` on release, set `NODE_ENV=production`, `DATABASE_URL` and a strong `SESSION_SECRET`, The preview runs in Frankfurt (`fra1`) next to the Neon database. For real student data, move the app and database to a UAE or GCC region if the school requires data residency. `/api/health` returns 200 when the app can reach the database.

@@ -1,6 +1,8 @@
-# Educop MVP
+# Educop
 
-The first working slice of Educop, an AI-powered KG–12 learning platform. It covers the **MVP core** from the product spec:
+Educop is an AI-powered KG–12 learning platform. This app covers the MVP core and every module in the UI preview.
+
+**MVP core**
 
 - Sign-in with role-based dashboards (student, teacher, parent, school admin, platform admin)
 - Student dashboard: today's lessons, to-do list, subject progress, recent results and recommendations
@@ -9,6 +11,17 @@ The first working slice of Educop, an AI-powered KG–12 learning platform. It c
 - Assignments: builder (multiple choice and short answer), student submission, automatic marking, teacher marking, late policy, gradebook and question analysis
 - A rule-based recommendation engine that runs whenever a submission is fully marked
 - **Multi-school from day one**: organisations → schools → everything else, with data isolated per school
+
+**Modules**
+
+- **Students:** reasoning-skills practice in five areas (adaptive and growth-focused, never an IQ score), "My growth" (mood check-ins, reflections, goals and habits, private by default), "For you" (recommendations, points, badges and streak, with no leaderboards), and the Nova AI study buddy (Socratic hints, a safety screen, daily limit, parent consent).
+- **Teachers:** an AI assistant that drafts lessons, quizzes, feedback, differentiated tasks and parent notes for the teacher to review; student progress with an objective heatmap, plus class skills and wellbeing summaries (anonymous, minimum group of 5); recommendation review with approve, modify, dismiss and manual suggestions.
+- **Everyone:** a sidebar app shell, in-app notifications for real events, and settings and privacy (profile, password, accessibility, notification choices, parent consents per child, download my data, deletion request).
+- **Parent–teacher messages:** each conversation is about one child. Messages containing contact details are held for moderation.
+- **Virtual classroom:** schedule, start and end live classes, with attendance, raise hand, moderated chat and live polls. Video uses an embedded Jitsi Meet room.
+- **Parent portal:** a child switcher and per-child overview, plus a home learning page with a "we did this" tick.
+- **School admin:** overview, people (add, deactivate, parent links, CSV roster import with a dry run), classes and subjects, lesson approvals, reports with CSV export, moderation, and school settings.
+- **Platform admin:** schools and organisations (add a school with its first admin, suspend, plan and seats), AI usage, moderation across schools, and the audit log.
 
 All demo people, schools and results are fictional.
 
@@ -116,14 +129,16 @@ Each suggestion stores its evidence ("Comparing fractions quiz: 4/10 (40%)") and
 - Audit log for sign-ins, content changes, submissions, marking and recommendation decisions
 - Security headers (frame-deny, nosniff, referrer and permissions policy)
 
+## AI
+
+AI features call Claude through `src/lib/ai.ts` when `ANTHROPIC_API_KEY` is set (model from `AI_MODEL`, default `claude-opus-5-5`). Without a key, every AI screen still works with clearly labelled template suggestions. A school admin can switch AI off for their school. Teacher-facing AI output is always a draft the teacher edits and accepts.
+
 ## Not built yet (next phases)
 
 - Password reset, SSO and MFA for staff
-- School admin tools: users, classes, curriculum setup, approvals, CSV import
-- Platform admin: create and suspend schools, billing
-- Notifications (email, push) and the full parent portal
-- AI features: lesson and quiz generation, AI study buddy, AI-written recommendation text (all with teacher review)
-- Virtual classroom, cognitive skills assessments, development (SEL) module, analytics
+- Email, push and SMS delivery (preferences are saved; in-app notifications work)
+- A dedicated video provider with recording, breakout rooms and whiteboard (the demo embeds public Jitsi Meet)
+- Billing
 - File uploads (private object storage), question banks, rubrics
 - Production rate limiting across several servers (the current limiter is per process)
 - Legal review of UAE data-protection requirements before handling real student data

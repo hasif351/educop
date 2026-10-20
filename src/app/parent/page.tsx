@@ -12,7 +12,6 @@ import { ChildSwitcher } from "./ChildSwitcher";
 export const metadata = { title: "My children" };
 
 const KIND_LABEL: Record<string, string> = { REVIEW: "Review", PRACTICE: "Practice", CHALLENGE: "Challenge" };
-const MOOD = ["", "Low", "A bit low", "Okay", "Good", "Great"];
 
 export default async function ParentHome({ searchParams }: { searchParams: Promise<{ child?: string }> }) {
   const s = await requireRole("PARENT");
@@ -165,20 +164,8 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
 
         <section className="card">
           <h2 className="text-lg">Wellbeing</h2>
-          {d.wellbeing.length === 0 ? (
-            <p className="text-sm text-muted">{name}&apos;s wellbeing check-ins are private. You&apos;ll only see a check-in here if {name} chooses to share it. If you have a concern, talk with {name} or the class teacher.</p>
-          ) : (
-            <>
-              <ul className="flex flex-col gap-2 text-sm">{d.wellbeing.map((w) => (
-                <li key={w.id} className="flex flex-wrap items-center gap-2">
-                  <span className="tnum w-16 text-muted">{fmtDate(w.createdAt, { day: "numeric", month: "short" })}</span>
-                  <Chip tone={w.mood >= 4 ? "good" : w.mood === 3 ? "blue" : "warn"}>{MOOD[w.mood] ?? "–"}</Chip>
-                  {w.feelings.length > 0 && <span className="text-muted">{w.feelings.join(", ")}</span>}
-                </li>
-              ))}</ul>
-              <p className="text-xs text-muted">Only check-ins {name} chose to share. Notes stay private.</p>
-            </>
-          )}
+          {/* Students share check-ins with their teacher only, so parents see none of them. */}
+          <p className="text-sm text-muted">{name}&apos;s wellbeing check-ins are private to {name}, who can choose to share them with their teacher. If you have a concern, talk with {name} or the class teacher.</p>
         </section>
 
         <section className="card">

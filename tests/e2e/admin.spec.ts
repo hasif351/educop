@@ -22,7 +22,7 @@ test("parent switches between verified children and sees privacy-respecting over
   await expect(page.getByRole("heading", { name: "Layla's overview" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Recent results" })).toBeVisible();
   await expect(page.getByText("Excellent reasoning about piece sizes.").or(page.getByText("Good effort. Remember")).first()).toBeVisible();
-  await expect(page.getByText(/wellbeing check-ins are private/)).toBeVisible();
+  await expect(page.getByText(/wellbeing check-ins are private to Layla/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Message teacher" })).toHaveAttribute("href", "/parent/messages");
 
   // A child id that isn't this parent's verified child is a 404.
@@ -69,7 +69,7 @@ test("school admin overview, approvals and moderation", async ({ page }) => {
 
   await page.goto("/admin/moderation");
   const held = page.locator("li", { hasText: "Parent message auto-held" });
-  await expect(held.getByText("050 123 4567")).toBeVisible();
+  await expect(held.getByText("055 987 6543")).toBeVisible();
   await held.getByRole("button", { name: "Keep hidden" }).click();
   await expect(held).toHaveCount(0);
   await page.locator("li", { hasText: "AI study buddy reply flagged" }).getByRole("button", { name: /^Dismiss/ }).click();

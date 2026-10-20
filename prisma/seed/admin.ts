@@ -43,7 +43,7 @@ export async function seedAdmin(db: PrismaClient) {
   if ((await db.moderationItem.count({ where: { schoolId: school.id } })) === 0) {
     const held = await db.message.create({ data: {
       schoolId: school.id, fromId: rania.id, toId: sara.id, studentId: layla.id, held: true, createdAt: new Date(now - 2 * 3600_000),
-      body: "Hi Ms Mitchell, could you call me about Layla's fractions homework? My number is 050 123 4567.",
+      body: "Hi Ms Mitchell, could you call me about Layla's fractions homework? My number is 055 987 6543.",
     } });
     const flagged = await db.aiMessage.create({ data: {
       schoolId: school.id, userId: layla.id, role: "assistant", flagged: true, createdAt: new Date(now - 5 * 3600_000),

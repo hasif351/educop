@@ -40,10 +40,9 @@ export async function childOverview(s: S, childId: string) {
   const d = await studentDashboard({ ...s, userId: child.id, role: "STUDENT" });
   const classIds = d.classes.map((c) => c.id);
   const now = new Date();
-  const [live, attended, wellbeing, badges] = await Promise.all([
+  const [live, attended, badges] = await Promise.all([
     db.liveSession.findMany({ where: { schoolId: s.schoolId, classId: { in: classIds }, OR: [{ status: "ENDED" }, { startsAt: { lt: now }, status: { not: "SCHEDULED" } }] }, select: { id: true }, orderBy: { startsAt: "desc" }, take: 50 }),
     db.liveAttendance.findMany({ where: { userId: child.id, session: { schoolId: s.schoolId, classId: { in: classIds } } }, select: { sessionId: true } }),
-    db.selCheckin.findMany({ where: { schoolId: s.schoolId, studentId: child.id, shared: true }, select: { id: true, mood: true, feelings: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 5 }),
     db.studentBadge.findMany({ where: { studentId: child.id }, orderBy: { earnedAt: "desc" }, take: 6 }),
   ]);
   const upcoming = await db.liveSession.findMany({
@@ -59,7 +58,7 @@ export async function childOverview(s: S, childId: string) {
     missing: d.pending.filter((a) => a.dueAt < now),
     graded: graded.map((g) => ({ ...g, teacher: teacherOf.get(g.assignment.classId) ?? null })),
     live: { held: live.length, attended: attended.filter((a) => liveIds.has(a.sessionId)).length, upcoming },
-    wellbeing, badges,
+    badges,
   };
 }
 

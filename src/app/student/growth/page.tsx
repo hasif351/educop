@@ -59,7 +59,7 @@ export default async function GrowthPage() {
               <ul className="mt-2 flex flex-col gap-2">
                 {d.reflections.map((r) => (
                   <li key={r.id} className="rounded-lg bg-surface-2 p-2">
-                    <div className="text-xs text-muted">{SCENARIOS.find((x) => x.id === r.scenario)?.title} · {fmtDate(r.createdAt)}{r.shared ? " · shared with teacher" : ""}</div>
+                    <div className="text-xs text-muted">{SCENARIOS.find((x) => x.id === r.scenario)?.title} · {fmtDate(r.createdAt)}{r.shared ? " · shared with teacher" : ""}{r.sharedWithParent ? " · shared with parent" : ""}</div>
                     {r.response}
                   </li>
                 ))}

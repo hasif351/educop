@@ -18,11 +18,12 @@ test("parent switches between verified children and sees privacy-respecting over
   await login(page, "rania.hassan@example.com");
   // Children are listed by name; the first one is shown until the parent switches.
   await expect(page.getByRole("heading", { name: "Adam's overview" })).toBeVisible();
+  await expect(page.getByText(/wellbeing check-ins are private to Adam/)).toBeVisible();
   await page.getByRole("link", { name: /Layla Hassan/ }).click();
   await expect(page.getByRole("heading", { name: "Layla's overview" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Recent results" })).toBeVisible();
   await expect(page.getByText("Excellent reasoning about piece sizes.").or(page.getByText("Good effort. Remember")).first()).toBeVisible();
-  await expect(page.getByText(/wellbeing check-ins are private to Layla/)).toBeVisible();
+  await expect(page.getByText("Only check-ins Layla chose to share with you.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Message teacher" })).toHaveAttribute("href", "/parent/messages");
 
   // A child id that isn't this parent's verified child is a 404.

@@ -60,6 +60,7 @@ test("growth: private check-in, reflection, goals and habits", async ({ page }) 
   await page.getByText("A bit low").click();
   await page.getByText("Worried", { exact: true }).click();
   await expect(page.getByLabel("Share with my teacher").first()).not.toBeChecked();
+  await expect(page.getByLabel("Share with my parent").first()).not.toBeChecked();
   await page.getByRole("button", { name: "Save check-in" }).click();
   await expect(page.getByText("Check-in saved.")).toBeVisible();
   await expect(page.getByText(/3-minute stretch break/)).toBeVisible();

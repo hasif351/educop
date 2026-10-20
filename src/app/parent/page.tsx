@@ -6,6 +6,7 @@ import { percent } from "@/lib/grading";
 import { homeActivities } from "@/lib/home-learning";
 import { BADGES } from "@/lib/points";
 import { gradeLabel } from "@/lib/roster";
+import { MOODS } from "@/lib/sel";
 import { Bar, Chip, Empty, PageHeader, fmtDate, fmtTime, scoreTone } from "@/components/ui";
 import { ChildSwitcher } from "./ChildSwitcher";
 
@@ -164,8 +165,24 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
 
         <section className="card">
           <h2 className="text-lg">Wellbeing</h2>
-          {/* Students share check-ins with their teacher only, so parents see none of them. */}
-          <p className="text-sm text-muted">{name}&apos;s wellbeing check-ins are private to {name}, who can choose to share them with their teacher. If you have a concern, talk with {name} or the class teacher.</p>
+          {d.wellbeing.length === 0 ? (
+            <p className="text-sm text-muted">{name}&apos;s wellbeing check-ins are private to {name}. You&apos;ll see a check-in here only if {name} chooses to share it with you. If you have a concern, talk with {name} or the class teacher.</p>
+          ) : (
+            <>
+              <ul className="flex flex-col gap-3 text-sm">{d.wellbeing.map((w) => (
+                <li key={w.id} className="flex flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="tnum text-muted">{fmtDate(w.createdAt, { day: "numeric", month: "short" })}</span>
+                    {w.mood > 0 ? <Chip tone={w.mood >= 4 ? "good" : w.mood === 3 ? "blue" : "warn"}>{MOODS.find((m) => m.value === w.mood)?.label ?? "–"}</Chip> : <Chip>Reflection</Chip>}
+                    {w.feelings.length > 0 && <span className="text-muted">{w.feelings.join(", ")}</span>}
+                  </div>
+                  {w.note && <p className="text-xs">“{w.note}”</p>}
+                  {w.response && <p className="text-xs">“{w.response}”</p>}
+                </li>
+              ))}</ul>
+              <p className="text-xs text-muted">Only check-ins {name} chose to share with you.</p>
+            </>
+          )}
         </section>
 
         <section className="card">

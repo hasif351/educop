@@ -419,6 +419,8 @@ model SelCheckin {
   scenario  String?
   response  String?
   shared    Boolean  @default(false)
+  // Separate choice: the student can also share an entry with their verified parents.
+  sharedWithParent Boolean @default(false)
   createdAt DateTime @default(now())
 
   @@index([schoolId, studentId, createdAt])

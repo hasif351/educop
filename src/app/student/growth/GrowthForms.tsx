@@ -9,10 +9,16 @@ const Alert = ({ state }: { state: GrowthState }) =>
 
 function ShareSwitch({ id }: { id: string }) {
   return (
-    <label htmlFor={id} className="flex items-start gap-2 rounded-lg bg-surface-2 p-3 text-sm">
-      <input id={id} type="checkbox" name="shared" className="mt-1" />
-      <span><b>Share with my teacher</b><br /><span className="text-muted">Off unless you tick it. If you share, your teacher can read this one entry.</span></span>
-    </label>
+    <div className="flex flex-col gap-2 rounded-lg bg-surface-2 p-3 text-sm">
+      <label htmlFor={id} className="flex items-start gap-2">
+        <input id={id} type="checkbox" name="shared" className="mt-1" />
+        <span><b>Share with my teacher</b><br /><span className="text-muted">Off unless you tick it. If you share, your teacher can read this one entry.</span></span>
+      </label>
+      <label htmlFor={`${id}-parent`} className="flex items-start gap-2">
+        <input id={`${id}-parent`} type="checkbox" name="sharedWithParent" className="mt-1" />
+        <span><b>Share with my parent</b><br /><span className="text-muted">Off unless you tick it. If you share, your parent can read this one entry.</span></span>
+      </label>
+    </div>
   );
 }
 
@@ -141,7 +147,7 @@ export function Habits({ items, initial }: { items: { key: string; label: string
 const WHO: [string, string][] = [
   ["You", "Everything you write here"],
   ["Your teacher", "Only the check-ins and reflections you choose to share, plus a class summary with no names (only for groups of 5 or more), and check-in requests you send"],
-  ["Your parents", "Not shown on their pages"],
+  ["Your parents", "Only the check-ins and reflections you choose to share with them"],
   ["Other students", "Never"],
   ["Nova (study buddy)", "Never. Nova can't see your growth answers"],
 ];

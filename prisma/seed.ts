@@ -20,6 +20,11 @@ const at = (dayOffset: number, hour: number, min = 0) => {
 type KC = { prompt: string; options: string[]; answerIndex: number; hint: string; explanation: string };
 
 async function main() {
+  // On deploys the seed runs with --if-empty so it never wipes a database that already has data.
+  if (process.argv.includes("--if-empty") && (await db.school.count()) > 0) {
+    console.log("Database already has schools; skipping demo seed.");
+    return;
+  }
   // Clear in dependency order so the seed can be re-run.
   await db.$transaction([
     db.auditLog.deleteMany(), db.recommendation.deleteMany(), db.answer.deleteMany(), db.submission.deleteMany(),

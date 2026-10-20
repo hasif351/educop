@@ -4,20 +4,49 @@ import { logout } from "@/app/actions-auth";
 import { ROLE_LABEL } from "@/lib/roles";
 import { NavLinks } from "./NavLinks";
 
-const NAV: Record<Role, { href: string; label: string }[]> = {
+// Every role's pages. Each role also has /<role>/notifications and /<role>/settings.
+export const NAV: Record<Role, { href: string; label: string }[]> = {
   STUDENT: [
     { href: "/student", label: "Dashboard" },
     { href: "/student/lessons", label: "Lessons" },
     { href: "/student/assignments", label: "Assignments" },
+    { href: "/student/skills", label: "Reasoning skills" },
+    { href: "/student/growth", label: "My growth" },
+    { href: "/student/for-you", label: "For you" },
+    { href: "/student/buddy", label: "Study buddy" },
+    { href: "/student/live", label: "Live class" },
   ],
   TEACHER: [
     { href: "/teacher", label: "Dashboard" },
     { href: "/teacher/lessons", label: "Lessons" },
     { href: "/teacher/assignments", label: "Assignments" },
+    { href: "/teacher/ai", label: "AI assistant" },
+    { href: "/teacher/progress", label: "Student progress" },
+    { href: "/teacher/recommendations", label: "Recommendations" },
+    { href: "/teacher/live", label: "Virtual classroom" },
+    { href: "/teacher/messages", label: "Messages" },
   ],
-  PARENT: [{ href: "/parent", label: "My children" }],
-  SCHOOL_ADMIN: [{ href: "/admin", label: "School overview" }],
-  SUPER_ADMIN: [{ href: "/platform", label: "Schools" }],
+  PARENT: [
+    { href: "/parent", label: "My children" },
+    { href: "/parent/home-learning", label: "Home learning" },
+    { href: "/parent/messages", label: "Messages" },
+  ],
+  SCHOOL_ADMIN: [
+    { href: "/admin", label: "School overview" },
+    { href: "/admin/users", label: "People" },
+    { href: "/admin/classes", label: "Classes" },
+    { href: "/admin/approvals", label: "Approvals" },
+    { href: "/admin/reports", label: "Reports" },
+    { href: "/admin/moderation", label: "Moderation" },
+    { href: "/admin/school", label: "School settings" },
+  ],
+  SUPER_ADMIN: [
+    { href: "/platform", label: "Overview" },
+    { href: "/platform/schools", label: "Schools" },
+    { href: "/platform/ai-usage", label: "AI usage" },
+    { href: "/platform/moderation", label: "Moderation" },
+    { href: "/platform/audit", label: "Audit log" },
+  ],
 };
 
 export function AppShell({

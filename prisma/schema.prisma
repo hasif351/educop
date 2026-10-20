@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   url       = env("DATABASE_URL")
   // Migrations need a direct (non-pooled) connection. Vercel's Neon integration sets both.
   directUrl = env("DATABASE_URL_UNPOOLED")
@@ -23,6 +23,7 @@ enum Role {
 
 enum ContentStatus {
   DRAFT
+  PENDING_APPROVAL
   PUBLISHED
   ARCHIVED
 }
@@ -53,16 +54,21 @@ model Organization {
 }
 
 model School {
-  id             String       @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  name           String
-  slug           String       @unique
-  city           String?
-  curriculum     String       @default("British")
-  timezone       String       @default("Asia/Dubai")
-  active         Boolean      @default(true)
-  createdAt      DateTime     @default(now())
+  id                    String       @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id])
+  name                  String
+  slug                  String       @unique
+  city                  String?
+  curriculum            String       @default("British")
+  timezone              String       @default("Asia/Dubai")
+  active                Boolean      @default(true)
+  plan                  String       @default("Pilot")
+  seatLimit             Int          @default(500)
+  // When true, lessons need school-admin approval before students see them.
+  requireLessonApproval Boolean      @default(false)
+  aiEnabled             Boolean      @default(true)
+  createdAt             DateTime     @default(now())
 
   users         User[]
   subjects      Subject[]
@@ -87,40 +93,58 @@ model AcademicYear {
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   // Null only for SUPER_ADMIN, who works across schools.
   schoolId     String?
-  school       School?  @relation(fields: [schoolId], references: [id])
+  school       School?   @relation(fields: [schoolId], references: [id])
   role         Role
-  email        String   @unique
+  email        String    @unique
   name         String
   passwordHash String
   gradeLevel   Int? // students only: 0 = KG2, -1 = KG1, 1..12
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
   lastLoginAt  DateTime?
+  // Accessibility, language and notification preferences (see src/lib/prefs.ts).
+  prefs        Json      @default("{}")
+  // Students only: total points earned (see PointEvent).
+  points       Int       @default(0)
 
-  teaching        Class[]          @relation("ClassTeacher")
-  enrollments     Enrollment[]
-  childrenLinks   ParentStudent[]  @relation("ParentLink")
-  parentLinks     ParentStudent[]  @relation("ChildLink")
-  lessonProgress  LessonProgress[]
-  submissions     Submission[]
-  recommendations Recommendation[]
-  createdLessons  Lesson[]         @relation("LessonAuthor")
-  createdAssigns  Assignment[]     @relation("AssignmentAuthor")
-  auditLogs       AuditLog[]
+  teaching          Class[]            @relation("ClassTeacher")
+  enrollments       Enrollment[]
+  childrenLinks     ParentStudent[]    @relation("ParentLink")
+  parentLinks       ParentStudent[]    @relation("ChildLink")
+  lessonProgress    LessonProgress[]
+  submissions       Submission[]
+  recommendations   Recommendation[]
+  createdLessons    Lesson[]           @relation("LessonAuthor")
+  createdAssigns    Assignment[]       @relation("AssignmentAuthor")
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  consents          Consent[]
+  sentMessages      Message[]          @relation("MessageFrom")
+  receivedMessages  Message[]          @relation("MessageTo")
+  cognitiveSessions CognitiveSession[]
+  selCheckins       SelCheckin[]
+  selGoals          SelGoal[]
+  badges            StudentBadge[]
+  pointEvents       PointEvent[]
+  aiMessages        AiMessage[]
+  aiDrafts          AiDraft[]
+  liveSessions      LiveSession[]
+  liveAttendance    LiveAttendance[]
+  liveChat          LiveChat[]
 
   @@index([schoolId, role])
 }
 
 model ParentStudent {
-  parentId   String
-  studentId  String
-  parent     User     @relation("ParentLink", fields: [parentId], references: [id])
-  student    User     @relation("ChildLink", fields: [studentId], references: [id])
-  verified   Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  parentId  String
+  studentId String
+  parent    User     @relation("ParentLink", fields: [parentId], references: [id])
+  student   User     @relation("ChildLink", fields: [studentId], references: [id])
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   @@id([parentId, studentId])
 }
@@ -138,15 +162,15 @@ model Subject {
 }
 
 model Class {
-  id             String        @id @default(cuid())
+  id             String       @id @default(cuid())
   schoolId       String
-  school         School        @relation(fields: [schoolId], references: [id])
+  school         School       @relation(fields: [schoolId], references: [id])
   academicYearId String
-  academicYear   AcademicYear  @relation(fields: [academicYearId], references: [id])
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
   subjectId      String
-  subject        Subject       @relation(fields: [subjectId], references: [id])
+  subject        Subject      @relation(fields: [subjectId], references: [id])
   teacherId      String
-  teacher        User          @relation("ClassTeacher", fields: [teacherId], references: [id])
+  teacher        User         @relation("ClassTeacher", fields: [teacherId], references: [id])
   name           String // e.g. "5B Mathematics"
   gradeLevel     Int
   enrollments    Enrollment[]
@@ -215,24 +239,24 @@ model LessonProgress {
 }
 
 model Assignment {
-  id           String        @id @default(cuid())
-  schoolId     String
-  school       School        @relation(fields: [schoolId], references: [id])
-  classId      String
-  class        Class         @relation(fields: [classId], references: [id])
-  lessonId     String?
-  lesson       Lesson?       @relation(fields: [lessonId], references: [id])
-  authorId     String
-  author       User          @relation("AssignmentAuthor", fields: [authorId], references: [id])
-  title        String
-  instructions String        @default("")
-  dueAt        DateTime
+  id                String        @id @default(cuid())
+  schoolId          String
+  school            School        @relation(fields: [schoolId], references: [id])
+  classId           String
+  class             Class         @relation(fields: [classId], references: [id])
+  lessonId          String?
+  lesson            Lesson?       @relation(fields: [lessonId], references: [id])
+  authorId          String
+  author            User          @relation("AssignmentAuthor", fields: [authorId], references: [id])
+  title             String
+  instructions      String        @default("")
+  dueAt             DateTime
   // Percent deducted per day late; null = late work not accepted.
-  latePenaltyPerDay Int?     @default(10)
-  maxLateDays  Int           @default(3)
-  status       ContentStatus @default(DRAFT)
-  publishedAt  DateTime?
-  createdAt    DateTime      @default(now())
+  latePenaltyPerDay Int?          @default(10)
+  maxLateDays       Int           @default(3)
+  status            ContentStatus @default(DRAFT)
+  publishedAt       DateTime?
+  createdAt         DateTime      @default(now())
 
   questions   Question[]
   submissions Submission[]
@@ -289,16 +313,16 @@ model Answer {
 // Rule-based in the MVP (see src/lib/recommend.ts). Every recommendation
 // stores the evidence behind it so it can be explained and reviewed.
 model Recommendation {
-  id          String               @id @default(cuid())
-  schoolId    String
-  studentId   String
-  student     User                 @relation(fields: [studentId], references: [id])
-  kind        String // REVIEW | PRACTICE | CHALLENGE
-  title       String
-  evidence    String[]
-  lessonId    String?
-  status      RecommendationStatus @default(ACTIVE)
-  createdAt   DateTime             @default(now())
+  id        String               @id @default(cuid())
+  schoolId  String
+  studentId String
+  student   User                 @relation(fields: [studentId], references: [id])
+  kind      String // REVIEW | PRACTICE | CHALLENGE
+  title     String
+  evidence  String[]
+  lessonId  String?
+  status    RecommendationStatus @default(ACTIVE)
+  createdAt DateTime             @default(now())
 
   @@index([schoolId, studentId, status])
 }
@@ -315,4 +339,230 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([schoolId, createdAt])
+}
+
+// ---------------- Modules beyond the MVP core ----------------
+
+model Notification {
+  id        String    @id @default(cuid())
+  schoolId  String?
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  kind      String // class | assign | grade | ai | message | system
+  title     String
+  body      String    @default("")
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+}
+
+// Consents a user (or a parent for a child) has granted. key examples:
+// ai_tutor, sel_share_teacher, analytics, photo_media.
+model Consent {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  key       String
+  granted   Boolean
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, key])
+}
+
+// Parent <-> teacher messages, always about one student.
+model Message {
+  id        String    @id @default(cuid())
+  schoolId  String
+  fromId    String
+  from      User      @relation("MessageFrom", fields: [fromId], references: [id])
+  toId      String
+  to        User      @relation("MessageTo", fields: [toId], references: [id])
+  studentId String?
+  body      String
+  // Held messages (e.g. containing a phone number) wait for admin moderation.
+  held      Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([schoolId, toId, createdAt])
+  @@index([schoolId, fromId, createdAt])
+}
+
+// Reasoning-skills practice (never reported as IQ). Items are generated in code.
+model CognitiveSession {
+  id          String    @id @default(cuid())
+  schoolId    String
+  studentId   String
+  student     User      @relation(fields: [studentId], references: [id])
+  domain      String // patterns | memory | verbal | spatial | speed
+  level       Int       @default(1)
+  items       Json // generated items with the student's answers and times
+  correct     Int       @default(0)
+  total       Int       @default(0)
+  avgMs       Int?
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([schoolId, studentId, domain])
+}
+
+// Social-emotional learning: private by default, shared with the teacher only if the student opts in.
+model SelCheckin {
+  id        String   @id @default(cuid())
+  schoolId  String
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id])
+  mood      Int // 1..5
+  feelings  String[]
+  note      String   @default("")
+  scenario  String?
+  response  String?
+  shared    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([schoolId, studentId, createdAt])
+}
+
+model SelGoal {
+  id        String    @id @default(cuid())
+  schoolId  String
+  studentId String
+  student   User      @relation(fields: [studentId], references: [id])
+  text      String
+  doneAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([schoolId, studentId])
+}
+
+model PointEvent {
+  id        String   @id @default(cuid())
+  schoolId  String
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id])
+  points    Int
+  reason    String
+  // Prevents awarding twice for the same thing, e.g. "lesson:<id>".
+  key       String
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, key])
+  @@index([schoolId, createdAt])
+}
+
+model StudentBadge {
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id])
+  badge     String
+  earnedAt  DateTime @default(now())
+
+  @@id([studentId, badge])
+}
+
+// AI study buddy conversation turns (students) - kept for safety review.
+model AiMessage {
+  id           String   @id @default(cuid())
+  schoolId     String
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  role         String // user | assistant
+  content      String
+  flagged      Boolean  @default(false)
+  model        String?
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([schoolId, userId, createdAt])
+}
+
+// Teacher AI assistant drafts. Nothing reaches students until a teacher accepts it.
+model AiDraft {
+  id           String   @id @default(cuid())
+  schoolId     String
+  teacherId    String
+  teacher      User     @relation(fields: [teacherId], references: [id])
+  tool         String // lesson | quiz | feedback | differentiate | parent_note
+  prompt       String
+  output       Json
+  status       String   @default("DRAFT") // DRAFT | ACCEPTED | DISCARDED
+  model        String?
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([schoolId, teacherId, createdAt])
+}
+
+model ModerationItem {
+  id           String    @id @default(cuid())
+  schoolId     String?
+  kind         String // ai_reply | message | content
+  sourceId     String?
+  summary      String
+  status       String    @default("OPEN") // OPEN | RESOLVED | DISMISSED
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([status, createdAt])
+}
+
+model LiveSession {
+  id          String    @id @default(cuid())
+  schoolId    String
+  classId     String
+  teacherId   String
+  teacher     User      @relation(fields: [teacherId], references: [id])
+  title       String
+  startsAt    DateTime
+  durationMin Int       @default(40)
+  status      String    @default("SCHEDULED") // SCHEDULED | LIVE | ENDED
+  roomName    String    @unique
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime  @default(now())
+
+  attendance LiveAttendance[]
+  chat       LiveChat[]
+  polls      LivePoll[]
+
+  @@index([schoolId, classId, startsAt])
+}
+
+model LiveAttendance {
+  sessionId  String
+  session    LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User        @relation(fields: [userId], references: [id])
+  joinedAt   DateTime    @default(now())
+  lastSeenAt DateTime    @default(now())
+  handRaised Boolean     @default(false)
+
+  @@id([sessionId, userId])
+}
+
+model LiveChat {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  body      String
+  held      Boolean     @default(false)
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+model LivePoll {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question  String
+  options   String[]
+  open      Boolean     @default(true)
+  votes     Json        @default("{}") // { userId: optionIndex }
+  createdAt DateTime    @default(now())
 }

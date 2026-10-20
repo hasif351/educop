@@ -5,6 +5,7 @@ import { PrismaClient, type Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { applyLatePenalty, autoScore, daysLate, scoreSubmission } from "../src/lib/grading";
 import { recommendFromResult } from "../src/lib/recommend";
+import { seedModules } from "./seed/modules";
 
 const db = new PrismaClient();
 const PASSWORD = "Educop!2026";
@@ -22,11 +23,16 @@ type KC = { prompt: string; options: string[]; answerIndex: number; hint: string
 async function main() {
   // On deploys the seed runs with --if-empty so it never wipes a database that already has data.
   if (process.argv.includes("--if-empty") && (await db.school.count()) > 0) {
-    console.log("Database already has schools; skipping demo seed.");
+    console.log("Database already has schools; adding any missing module demo data only.");
+    await seedModules(db);
     return;
   }
   // Clear in dependency order so the seed can be re-run.
   await db.$transaction([
+    db.liveAttendance.deleteMany(), db.liveChat.deleteMany(), db.livePoll.deleteMany(), db.liveSession.deleteMany(),
+    db.notification.deleteMany(), db.consent.deleteMany(), db.message.deleteMany(), db.moderationItem.deleteMany(),
+    db.cognitiveSession.deleteMany(), db.selCheckin.deleteMany(), db.selGoal.deleteMany(),
+    db.pointEvent.deleteMany(), db.studentBadge.deleteMany(), db.aiMessage.deleteMany(), db.aiDraft.deleteMany(),
     db.auditLog.deleteMany(), db.recommendation.deleteMany(), db.answer.deleteMany(), db.submission.deleteMany(),
     db.question.deleteMany(), db.assignment.deleteMany(), db.lessonProgress.deleteMany(), db.lesson.deleteMany(),
     db.enrollment.deleteMany(), db.class.deleteMany(), db.subject.deleteMany(), db.parentStudent.deleteMany(),
@@ -232,6 +238,7 @@ async function main() {
     { type: "MCQ", prompt: "Simplify 6:4", options: ["3:2", "2:3", "6:4"], answerIndex: 0, points: 1 },
   ]);
 
+  await seedModules(db);
   console.log(`Seeded 2 schools. Password for every demo account: ${PASSWORD}`);
 }
 

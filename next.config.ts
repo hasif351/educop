@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Lets parallel local builds use separate output folders.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // Render metadata before the body so "not found" pages return a real 404 status.
   htmlLimitedBots: /.*/,
   async headers() {

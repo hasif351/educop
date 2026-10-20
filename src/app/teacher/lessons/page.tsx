@@ -24,7 +24,7 @@ export default async function TeacherLessons({ searchParams }: { searchParams: P
                   <td className="p-3"><Link className="font-bold hover:underline" href={`/teacher/lessons/${l.id}`}>{l.title}</Link></td>
                   <td className="p-3">{l.class.name}</td>
                   <td className="tnum whitespace-nowrap p-3">{fmtDate(l.scheduledFor)} {fmtTime(l.scheduledFor)}</td>
-                  <td className="p-3"><Chip tone={l.status === "PUBLISHED" ? "good" : l.status === "DRAFT" ? "warn" : "plain"}>{l.status === "PUBLISHED" ? "Published" : l.status === "DRAFT" ? "Draft" : "Archived"}</Chip></td>
+                  <td className="p-3"><Chip tone={l.status === "PUBLISHED" ? "good" : l.status === "DRAFT" ? "warn" : l.status === "PENDING_APPROVAL" ? "blue" : "plain"}>{STATUS_LABEL[l.status]}</Chip></td>
                   <td className="tnum p-3">{l._count.progress}</td>
                   <td className="p-3 text-right"><LessonStatusButton id={l.id} status={l.status} /></td>
                 </tr>
@@ -36,3 +36,5 @@ export default async function TeacherLessons({ searchParams }: { searchParams: P
     </>
   );
 }
+
+const STATUS_LABEL = { DRAFT: "Draft", PENDING_APPROVAL: "Waiting for approval", PUBLISHED: "Published", ARCHIVED: "Archived" } as const;

@@ -68,7 +68,7 @@ export async function saveLesson(lessonId: string | null, _: FormState, form: Fo
     objectives: v.objectives.split("\n").map((x) => x.trim()).filter(Boolean),
     introduction: v.introduction, explanation: v.explanation, activity: v.activity, knowledgeCheck: kc,
     worksheet: v.worksheet, nextActivity: v.nextActivity,
-    ...(v.intent === "publish" ? { status: "PUBLISHED" as const, publishedAt: new Date() } : {}),
+    ...(v.intent === "publish" ? await publishState(s.schoolId) : {}),
   };
   const lesson = lessonId
     ? await db.lesson.update({ where: { id: lessonId }, data })
@@ -78,11 +78,20 @@ export async function saveLesson(lessonId: string | null, _: FormState, form: Fo
   redirect(`/teacher/lessons?saved=${lesson.id}`);
 }
 
+/** Publishing goes straight live, or to the school admin first when the school requires approval. */
+async function publishState(schoolId: string) {
+  const school = await db.school.findUniqueOrThrow({ where: { id: schoolId }, select: { requireLessonApproval: true } });
+  return school.requireLessonApproval
+    ? { status: "PENDING_APPROVAL" as const }
+    : { status: "PUBLISHED" as const, publishedAt: new Date() };
+}
+
 export async function setLessonStatus(lessonId: string, status: "DRAFT" | "PUBLISHED" | "ARCHIVED") {
   const s = await requireRole("TEACHER");
   const l = await db.lesson.findFirst({ where: { id: lessonId, schoolId: s.schoolId, class: { teacherId: s.userId } } });
   if (!l) throw new Error("Lesson not found");
-  await db.lesson.update({ where: { id: l.id }, data: { status, publishedAt: status === "PUBLISHED" ? new Date() : l.publishedAt } });
+  const next = status === "PUBLISHED" ? await publishState(s.schoolId) : { status };
+  await db.lesson.update({ where: { id: l.id }, data: next });
   await audit(s, `lesson.${status.toLowerCase()}`, l.id);
   revalidatePath("/teacher/lessons");
 }

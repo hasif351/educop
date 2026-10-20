@@ -17,6 +17,14 @@ const nextConfig: NextConfig = {
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],
       },
+      // Live classroom pages embed the Jitsi Meet video room, which needs the
+      // camera, microphone and screen share. Later rules override earlier ones.
+      {
+        source: "/:role(teacher|student)/live/:id",
+        headers: [
+          { key: "Permissions-Policy", value: 'camera=(self "https://meet.jit.si"), microphone=(self "https://meet.jit.si"), display-capture=(self "https://meet.jit.si"), fullscreen=(self "https://meet.jit.si"), geolocation=()' },
+        ],
+      },
     ];
   },
 };

@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { finalizeScore } from "@/lib/submit";
+import { notify, parentsOf } from "@/lib/notify";
 
 type S = Awaited<ReturnType<typeof requireRole>>;
 export type FormState = { error?: string; ok?: boolean };
@@ -15,6 +16,24 @@ async function ownClass(s: S, classId: string) {
   const c = await db.class.findFirst({ where: { id: classId, schoolId: s.schoolId, teacherId: s.userId }, select: { id: true } });
   if (!c) throw new Error("Class not found");
   return c;
+}
+
+/** In-app notifications for a class's students (and, optionally, their verified parents). */
+async function notifyClass(s: S, classId: string, withParents: boolean, n: { kind: "class" | "assign"; title: string; body: string; studentHref: string; parentHref?: string }) {
+  const students = (await db.enrollment.findMany({ where: { classId, class: { schoolId: s.schoolId } }, select: { studentId: true } })).map((e) => e.studentId);
+  await notify(students, { schoolId: s.schoolId, kind: n.kind, title: n.title, body: n.body, href: n.studentHref });
+  if (withParents) await notify(await parentsOf(students), { schoolId: s.schoolId, kind: n.kind, title: n.title, body: n.body, href: n.parentHref ?? "/parent" });
+}
+
+async function notifyLessonPublished(s: S, lesson: { id: string; classId: string; title: string }) {
+  const cls = await db.class.findUniqueOrThrow({ where: { id: lesson.classId }, select: { name: true } });
+  await notifyClass(s, lesson.classId, false, { kind: "class", title: `New lesson: ${lesson.title}`, body: `${cls.name} · ${s.name}`, studentHref: `/student/lessons/${lesson.id}` });
+}
+
+async function notifyAssignmentPublished(s: S, a: { id: string; classId: string; title: string; dueAt: Date }) {
+  const cls = await db.class.findUniqueOrThrow({ where: { id: a.classId }, select: { name: true } });
+  const due = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Dubai", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(a.dueAt);
+  await notifyClass(s, a.classId, true, { kind: "assign", title: `New assignment: ${a.title}`, body: `${cls.name} · due ${due}`, studentHref: `/student/assignments/${a.id}` });
 }
 
 // ---------------- Lessons ----------------
@@ -70,9 +89,11 @@ export async function saveLesson(lessonId: string | null, _: FormState, form: Fo
     worksheet: v.worksheet, nextActivity: v.nextActivity,
     ...(v.intent === "publish" ? await publishState(s.schoolId) : {}),
   };
+  const wasPublished = lessonId ? (await db.lesson.findUnique({ where: { id: lessonId }, select: { status: true } }))?.status === "PUBLISHED" : false;
   const lesson = lessonId
     ? await db.lesson.update({ where: { id: lessonId }, data })
     : await db.lesson.create({ data: { ...data, schoolId: s.schoolId, authorId: s.userId } });
+  if (lesson.status === "PUBLISHED" && !wasPublished) await notifyLessonPublished(s, lesson);
   await audit(s, lessonId ? "lesson.update" : "lesson.create", lesson.id, { intent: v.intent });
   revalidatePath("/teacher/lessons");
   redirect(`/teacher/lessons?saved=${lesson.id}`);
@@ -92,6 +113,7 @@ export async function setLessonStatus(lessonId: string, status: "DRAFT" | "PUBLI
   if (!l) throw new Error("Lesson not found");
   const next = status === "PUBLISHED" ? await publishState(s.schoolId) : { status };
   await db.lesson.update({ where: { id: l.id }, data: next });
+  if (next.status === "PUBLISHED" && l.status !== "PUBLISHED") await notifyLessonPublished(s, l);
   await audit(s, `lesson.${status.toLowerCase()}`, l.id);
   revalidatePath("/teacher/lessons");
 }
@@ -157,6 +179,7 @@ export async function saveAssignment(assignmentId: string | null, _: FormState, 
     }
     return tx.assignment.create({ data: { ...data, schoolId: s.schoolId, authorId: s.userId, questions: { create: questionRows } } });
   });
+  if (a.status === "PUBLISHED") await notifyAssignmentPublished(s, a);
   await audit(s, assignmentId ? "assignment.update" : "assignment.create", a.id, { intent: v.intent });
   revalidatePath("/teacher/assignments");
   redirect(`/teacher/assignments/${a.id}`);
@@ -167,6 +190,7 @@ export async function publishAssignment(assignmentId: string) {
   const a = await db.assignment.findFirst({ where: { id: assignmentId, schoolId: s.schoolId, class: { teacherId: s.userId }, status: "DRAFT" } });
   if (!a) throw new Error("Assignment not found");
   await db.assignment.update({ where: { id: a.id }, data: { status: "PUBLISHED", publishedAt: new Date() } });
+  await notifyAssignmentPublished(s, a);
   await audit(s, "assignment.publish", a.id);
   revalidatePath(`/teacher/assignments/${a.id}`);
 }
@@ -191,7 +215,16 @@ export async function gradeSubmission(assignmentId: string, submissionId: string
     updates.push(db.answer.update({ where: { id: ans.id }, data: { teacherScore: n } }));
   }
   await db.$transaction([...updates, db.submission.update({ where: { id: sub.id }, data: { feedback: feedback || null } })]);
-  await finalizeScore(sub.id);
+  const result = await finalizeScore(sub.id);
+  if (result.fullyGraded) {
+    const [a, student] = await Promise.all([
+      db.assignment.findUniqueOrThrow({ where: { id: assignmentId }, select: { title: true } }),
+      db.user.findUniqueOrThrow({ where: { id: sub.studentId }, select: { name: true } }),
+    ]);
+    const n = { schoolId: s.schoolId, kind: "grade" as const, title: `Feedback posted: ${a.title}`, body: `Scored ${result.final}/${result.max}${feedback ? " with comments" : ""}` };
+    await notify([sub.studentId], { ...n, href: `/student/assignments/${assignmentId}` });
+    await notify(await parentsOf([sub.studentId]), { ...n, body: `${student.name} · ${n.body}`, href: "/parent" });
+  }
   await audit(s, "submission.grade", sub.id);
   revalidatePath(`/teacher/assignments/${assignmentId}`);
   redirect(`/teacher/assignments/${assignmentId}?graded=${sub.id}`);

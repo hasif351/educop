@@ -40,3 +40,12 @@
   .eyebrow { @apply text-xs font-bold uppercase tracking-wider text-muted; }
   .tnum { font-variant-numeric: tabular-nums; }
 }
+
+/* Accessibility preferences (Settings → Accessibility). The app shell carries the
+   class, so it applies on the server render with no flash. */
+html:has(.pref-large-text) { font-size: 112.5%; }
+html:has(.pref-calm) { scroll-behavior: auto; }
+.pref-calm *, .pref-calm *::before, .pref-calm *::after {
+  animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important; scroll-behavior: auto !important;
+}

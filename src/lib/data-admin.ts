@@ -188,15 +188,18 @@ export async function schoolModeration(s: S, status: "OPEN" | "CLOSED") {
   const msgIds = items.filter((i) => i.kind === "message" && i.sourceId).map((i) => i.sourceId!);
   const aiIds = items.filter((i) => i.kind === "ai_reply" && i.sourceId).map((i) => i.sourceId!);
   const resolverIds = items.map((i) => i.resolvedById).filter((x): x is string => Boolean(x));
-  const [messages, ai, resolvers] = await Promise.all([
+  const [messages, ai, resolvers, chats] = await Promise.all([
     db.message.findMany({ where: { id: { in: msgIds }, schoolId: s.schoolId }, include: { from: { select: { name: true, role: true } }, to: { select: { name: true, role: true } } } }),
     db.aiMessage.findMany({ where: { id: { in: aiIds }, schoolId: s.schoolId }, select: { id: true, content: true, role: true, createdAt: true } }),
     db.user.findMany({ where: { id: { in: resolverIds } }, select: { id: true, name: true } }),
+    // Live-class chat holds also use kind "message", with sourceId pointing at the LiveChat row.
+    db.liveChat.findMany({ where: { id: { in: msgIds }, session: { schoolId: s.schoolId } }, select: { id: true, body: true, held: true, user: { select: { name: true } }, session: { select: { title: true } } } }),
   ]);
   return items.map((i) => ({
     ...i,
     message: i.kind === "message" ? messages.find((m) => m.id === i.sourceId) ?? null : null,
     ai: i.kind === "ai_reply" ? ai.find((m) => m.id === i.sourceId) ?? null : null,
+    chat: i.kind === "message" ? chats.find((m) => m.id === i.sourceId) ?? null : null,
     resolvedBy: resolvers.find((u) => u.id === i.resolvedById)?.name ?? null,
   }));
 }

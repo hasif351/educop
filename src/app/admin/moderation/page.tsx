@@ -36,13 +36,19 @@ export default async function Moderation({ searchParams }: { searchParams: Promi
                   <p className="mt-1 whitespace-pre-wrap">{i.message.body}</p>
                 </div>
               )}
+              {i.chat && (
+                <div className="rounded-lg bg-surface-2 p-3 text-sm">
+                  <div className="text-xs text-muted">Live class chat · {i.chat.session.title} · {i.chat.user.name} · {i.chat.held ? "hidden from class" : "shown"}</div>
+                  <p className="mt-1 whitespace-pre-wrap">{i.chat.body}</p>
+                </div>
+              )}
               {i.ai && (
                 <div className="rounded-lg bg-surface-2 p-3 text-sm">
                   <div className="text-xs text-muted">Flagged {i.ai.role === "assistant" ? "AI study buddy reply" : "student message"}</div>
                   <p className="mt-1 whitespace-pre-wrap">{i.ai.content}</p>
                 </div>
               )}
-              {i.kind === "deletion" && i.status === "OPEN" && <p className="text-xs text-muted">Carry out the deletion in the relevant tool first, then resolve this request so it&apos;s recorded.</p>}
+              {(i.kind === "deletion" || i.summary.startsWith("Account deletion request")) && i.status === "OPEN" && <p className="text-xs text-muted">Carry out the deletion in the relevant tool first, then resolve this request so it&apos;s recorded.</p>}
               {i.status === "OPEN" ? (
                 <div className="flex flex-wrap gap-2">
                   {i.message ? (

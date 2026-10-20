@@ -8,7 +8,7 @@ import { requireRole } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { liveSessionFor, postChat } from "@/lib/live";
-import { newRoomName } from "@/lib/live-utils";
+import { newRoomName, parseMeetingUrl } from "@/lib/live-utils";
 
 export type LiveFormState = { error?: string; ok?: string };
 
@@ -26,7 +26,18 @@ const Schedule = z.object({
   title: z.string().trim().min(3, "Give the class a title.").max(120),
   startsAt: z.string().min(1, "Pick a date and time."),
   durationMin: z.coerce.number().int().min(10, "Classes run 10 to 180 minutes.").max(180, "Classes run 10 to 180 minutes."),
+  provider: z.enum(["teams", "meet", "jitsi"]).default("teams"),
+  meetingUrl: z.string().max(2000).default(""),
 });
+
+/** Teams and Meet classes need a valid join link from that service; the built-in room needs none. */
+function meeting(provider: "teams" | "meet" | "jitsi", raw: string): { provider: string; meetingUrl: string | null } | { error: string } {
+  if (provider === "jitsi") return { provider, meetingUrl: null };
+  const name = provider === "teams" ? "Microsoft Teams" : "Google Meet";
+  const parsed = parseMeetingUrl(raw);
+  if (!parsed || parsed.provider !== provider) return { error: `Paste the ${name} join link (it starts with ${provider === "teams" ? "https://teams.microsoft.com" : "https://meet.google.com"}).` };
+  return { provider, meetingUrl: parsed.url };
+}
 
 export async function scheduleLive(_: LiveFormState, form: FormData): Promise<LiveFormState> {
   const s = await requireRole("TEACHER");
@@ -38,10 +49,25 @@ export async function scheduleLive(_: LiveFormState, form: FormData): Promise<Li
   // datetime-local values are school time (GST, UTC+4).
   const startsAt = new Date(`${v.startsAt}:00+04:00`);
   if (Number.isNaN(startsAt.getTime())) return { error: "Pick a valid date and time." };
-  const live = await db.liveSession.create({ data: { schoolId: s.schoolId, classId: cls.id, teacherId: s.userId, title: v.title, startsAt, durationMin: v.durationMin, roomName: newRoomName() } });
+  const m = meeting(v.provider, v.meetingUrl);
+  if ("error" in m) return m;
+  const live = await db.liveSession.create({ data: { schoolId: s.schoolId, classId: cls.id, teacherId: s.userId, title: v.title, startsAt, durationMin: v.durationMin, roomName: newRoomName(), ...m } });
   await audit(s, "live.schedule", live.id);
   revalidatePath("/teacher/live");
   return { ok: "Class scheduled." };
+}
+
+export async function setMeetingLink(id: string, _: LiveFormState, form: FormData): Promise<LiveFormState> {
+  const { s, session } = await own(id);
+  if (session.status === "ENDED") return { error: "This class has ended." };
+  const v = Schedule.pick({ provider: true, meetingUrl: true }).safeParse(Object.fromEntries(form));
+  if (!v.success) return { error: v.error.issues[0].message };
+  const m = meeting(v.data.provider, v.data.meetingUrl);
+  if ("error" in m) return m;
+  await db.liveSession.update({ where: { id: session.id }, data: m });
+  await audit(s, "live.video", session.id, { provider: m.provider });
+  revalidatePath(`/teacher/live/${session.id}`);
+  return { ok: "Video link saved." };
 }
 
 export async function startLive(id: string) {

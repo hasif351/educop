@@ -194,6 +194,11 @@ test("virtual classroom: schedule, start, join, hands, chat, polls, end and repo
   const sara = await as(browser, "sara.mitchell@crescentbay.example");
   await sara.goto("/teacher/live");
   await sara.getByLabel("Title").fill("Fractions on a number line (live)");
+  await sara.getByLabel("Video").selectOption("teams");
+  await sara.getByLabel("Microsoft Teams join link").fill("https://zoom.us/j/123");
+  await sara.getByRole("button", { name: "Schedule class" }).click();
+  await expect(sara.locator('p[role="alert"]')).toContainText("Paste the Microsoft Teams join link");
+  await sara.getByLabel("Microsoft Teams join link").fill("https://teams.microsoft.com/l/meetup-join/19%3ameeting_demo%40thread.v2/0");
   await sara.getByRole("button", { name: "Schedule class" }).click();
   await expect(sara.getByText("Class scheduled.")).toBeVisible();
   await expect(sara.getByRole("link", { name: "Fractions on a number line (live)" })).toBeVisible();
@@ -259,4 +264,29 @@ test("virtual classroom: schedule, start, join, hands, chat, polls, end and repo
 
   await layla.goto("/student/notifications");
   await expect(layla.getByText("Live class has started: Equivalent fractions")).toBeVisible();
+});
+
+test("virtual classroom on Google Meet: students open the meeting from Educop and attendance is recorded", async ({ browser }) => {
+  const sara = await as(browser, "sara.mitchell@crescentbay.example");
+  await sara.goto("/teacher/live");
+  await sara.getByLabel("Title").fill("Meet lesson");
+  await sara.getByLabel("Video").selectOption("meet");
+  await sara.getByLabel("Google Meet join link").fill("https://meet.google.com/abc-defg-hij");
+  await sara.getByRole("button", { name: "Schedule class" }).click();
+  await expect(sara.getByText("Class scheduled.")).toBeVisible();
+  await expect(sara.locator("li", { hasText: "Meet lesson" })).toContainText("Google Meet");
+  await sara.locator("li", { hasText: "Meet lesson" }).getByRole("button", { name: "Start class" }).click();
+  await sara.waitForURL(/\/teacher\/live\/[^/]+$/, { timeout: 15_000 });
+  await expect(sara.getByRole("link", { name: "Open Google Meet" })).toHaveAttribute("href", "https://meet.google.com/abc-defg-hij");
+  await expect(sara.locator("iframe")).toHaveCount(0);
+
+  const layla = await as(browser, "layla@crescentbay.example");
+  await layla.goto("/student/live");
+  await layla.locator("li", { hasText: "Meet lesson" }).getByRole("link", { name: "Join class" }).click();
+  const popup = layla.waitForEvent("popup");
+  await layla.getByRole("button", { name: "Join class" }).click({ timeout: 15_000 });
+  await (await popup).close();
+  await expect(layla.getByText("You're in class")).toBeVisible();
+  await expect(layla.getByRole("link", { name: "Open Google Meet" })).toHaveAttribute("href", "https://meet.google.com/abc-defg-hij");
+  await expect(sara.getByRole("button", { name: /^People/ })).toBeVisible();
 });

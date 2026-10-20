@@ -6,6 +6,7 @@ import { toLocalInput } from "@/lib/datetime";
 import { Chip, Empty, PageHeader, fmtDate, fmtTime } from "@/components/ui";
 import { ScheduleForm } from "@/components/live/ScheduleForm";
 import { startLive } from "./actions";
+import { PROVIDER_LABEL, type VideoProvider } from "@/lib/live-utils";
 
 export const metadata = { title: "Virtual classroom" };
 
@@ -28,7 +29,7 @@ export default async function TeacherLive() {
                 <li key={x.id} className="flex flex-wrap items-center gap-3 border-t border-line py-3 first:border-0 first:pt-0">
                   <div className="min-w-0 flex-1">
                     <Link className="font-bold hover:underline" href={`/teacher/live/${x.id}`}>{x.title}</Link>
-                    <div className="text-sm text-muted">{x.cls?.name} · {fmtDate(x.startsAt)} {fmtTime(x.startsAt)} · {x.durationMin} min</div>
+                    <div className="text-sm text-muted">{x.cls?.name} · {fmtDate(x.startsAt)} {fmtTime(x.startsAt)} · {x.durationMin} min · {PROVIDER_LABEL[x.provider as VideoProvider] ?? x.provider}</div>
                   </div>
                   {x.status === "LIVE" ? <><Chip tone="bad">Live now</Chip><Link className="btn-primary btn-sm" href={`/teacher/live/${x.id}`}>Open class</Link></>
                     : <form action={startLive.bind(null, x.id)}><button className="btn-teal btn-sm">Start class</button></form>}

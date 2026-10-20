@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { liveSessionFor, liveState } from "@/lib/live";
-import { jitsiUrl, minutesAttended, tallyPoll } from "@/lib/live-utils";
+import { minutesAttended, tallyPoll, videoFor } from "@/lib/live-utils";
 import { Chip, PageHeader, fmtDate, fmtTime } from "@/components/ui";
 import { LiveRoom } from "@/components/live/LiveRoom";
 
@@ -44,6 +44,6 @@ export default async function StudentLiveSession({ params }: { params: Promise<{
 
   return (
     <LiveRoom id={session.id} role="STUDENT" title={session.title} className={session.cls.name} host={session.teacher.name}
-      videoUrl={jitsiUrl(session.roomName, { displayName: s.name })} initial={await liveState(s, session.id)} />
+      video={videoFor(session, s.name)} initial={await liveState(s, session.id)} />
   );
 }

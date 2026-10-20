@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { liveSessionFor, liveState } from "@/lib/live";
-import { jitsiUrl } from "@/lib/live-utils";
+import { videoFor, type VideoProvider } from "@/lib/live-utils";
+import { MeetingLinkForm } from "@/components/live/MeetingLinkForm";
 import { PageHeader, fmtDate, fmtTime } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { LiveRoom } from "@/components/live/LiveRoom";
@@ -40,6 +41,10 @@ export default async function TeacherLiveSession({ params }: { params: Promise<{
           </ul>
         </section>
         <section className="card">
+          <h2 className="text-lg">Video</h2>
+          <MeetingLinkForm id={session.id} provider={session.provider as VideoProvider} meetingUrl={session.meetingUrl ?? ""} />
+        </section>
+        <section className="card">
           <h2 className="text-lg">Secure join link</h2>
           <p className="break-all rounded-lg bg-surface-2 p-2 font-mono text-xs">/student/live/{session.id}</p>
           <p className="text-sm text-muted">Only enrolled students signed in to the school account can open it. The video room name is a long random code that is never shown to anyone outside the class.</p>
@@ -50,6 +55,6 @@ export default async function TeacherLiveSession({ params }: { params: Promise<{
 
   return (
     <LiveRoom id={session.id} role="TEACHER" title={session.title} className={session.cls.name} host={session.teacher.name}
-      videoUrl={jitsiUrl(session.roomName, { displayName: s.name })} initial={await liveState(s, session.id)} />
+      video={videoFor(session, s.name)} initial={await liveState(s, session.id)} />
   );
 }

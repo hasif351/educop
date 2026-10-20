@@ -522,6 +522,9 @@ model LiveSession {
   durationMin Int       @default(40)
   status      String    @default("SCHEDULED") // SCHEDULED | LIVE | ENDED
   roomName    String    @unique
+  // "teams" or "meet": the teacher pasted a meeting link; "jitsi": the built-in embedded room.
+  provider    String    @default("jitsi")
+  meetingUrl  String?
   startedAt   DateTime?
   endedAt     DateTime?
   createdAt   DateTime  @default(now())

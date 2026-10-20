@@ -2,6 +2,7 @@
 import { useActionState } from "react";
 import { keepValues } from "@/components/submit";
 import { scheduleLive, type LiveFormState } from "@/app/teacher/live/actions";
+import { VideoFields } from "./VideoFields";
 
 export function ScheduleForm({ classes, defaultStart }: { classes: { id: string; name: string }[]; defaultStart: string }) {
   const [state, action, pending] = useActionState<LiveFormState, FormData>(scheduleLive, {});
@@ -15,6 +16,7 @@ export function ScheduleForm({ classes, defaultStart }: { classes: { id: string;
         <label className="label">Starts (school time)<input className="input" type="datetime-local" name="startsAt" required defaultValue={defaultStart} /></label>
         <label className="label">Minutes<input className="input" type="number" name="durationMin" min={10} max={180} defaultValue={40} required /></label>
       </div>
+      <VideoFields />
       {state.error && <p role="alert" className="rounded-lg bg-bad-soft px-3 py-2 text-sm font-bold text-bad">{state.error}</p>}
       {state.ok && <p role="status" className="rounded-lg bg-good-soft px-3 py-2 text-sm font-bold text-good">{state.ok}</p>}
       <button className="btn-primary self-start" disabled={pending}>{pending ? "Scheduling…" : "Schedule class"}</button>

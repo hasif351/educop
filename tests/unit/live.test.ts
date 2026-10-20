@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPresent, jitsiUrl, minutesAttended, myVote, newRoomName, shortName, tallyPoll } from "@/lib/live-utils";
+import { isPresent, jitsiUrl, minutesAttended, myVote, newRoomName, parseMeetingUrl, shortName, tallyPoll } from "@/lib/live-utils";
 
 describe("virtual classroom helpers", () => {
   it("makes long random room names", () => {
@@ -35,5 +35,19 @@ describe("virtual classroom helpers", () => {
     expect(shortName("Hamdan Al Suwaidi")).toBe("Hamdan S.");
     expect(shortName("Noah Fernandes")).toBe("Noah F.");
     expect(shortName("Kenji")).toBe("Kenji");
+  });
+});
+
+describe("parseMeetingUrl", () => {
+  it("accepts Teams and Meet join links", () => {
+    expect(parseMeetingUrl("https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc%40thread.v2/0")?.provider).toBe("teams");
+    expect(parseMeetingUrl("https://teams.live.com/meet/9876543210")?.provider).toBe("teams");
+    expect(parseMeetingUrl(" https://meet.google.com/abc-defg-hij ")).toEqual({ provider: "meet", url: "https://meet.google.com/abc-defg-hij" });
+  });
+  it("rejects other hosts, http and look-alikes", () => {
+    for (const bad of [
+      "http://meet.google.com/abc-defg-hij", "https://meet.google.com/", "https://meet.google.com.evil.example/abc-defg-hij",
+      "https://teams.microsoft.com/", "https://user:pw@teams.microsoft.com/l/x", "https://zoom.us/j/123", "not a url", "javascript:alert(1)",
+    ]) expect(parseMeetingUrl(bad)).toBeNull();
   });
 });

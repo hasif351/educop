@@ -20,6 +20,30 @@ export function jitsiUrl(roomName: string, opts: { displayName: string }) {
   return `https://meet.jit.si/${encodeURIComponent(roomName)}#${cfg.join("&")}`;
 }
 
+export type VideoProvider = "teams" | "meet" | "jitsi";
+export const PROVIDER_LABEL: Record<VideoProvider, string> = { teams: "Microsoft Teams", meet: "Google Meet", jitsi: "Built-in room" };
+
+/**
+ * Checks a pasted meeting link and says which service it belongs to. Only
+ * https join links on the official Teams and Meet hosts are accepted, so a
+ * class link can't point students anywhere else.
+ */
+export function parseMeetingUrl(raw: string): { provider: "teams" | "meet"; url: string } | null {
+  let u: URL;
+  try { u = new URL(raw.trim()); } catch { return null; }
+  if (u.protocol !== "https:" || u.username || u.password || u.port) return null;
+  const host = u.hostname.toLowerCase();
+  if ((host === "teams.microsoft.com" || host === "teams.live.com") && u.pathname.length > 1) return { provider: "teams", url: u.toString() };
+  if (host === "meet.google.com" && /^\/[a-z]{3}-[a-z]{4}-[a-z]{3}$/.test(u.pathname)) return { provider: "meet", url: u.toString() };
+  return null;
+}
+
+/** What the classroom shows: the embedded built-in room, or a button that opens Teams or Meet. */
+export function videoFor(session: { provider: string; meetingUrl: string | null; roomName: string }, displayName: string) {
+  if ((session.provider === "teams" || session.provider === "meet") && session.meetingUrl) return { provider: session.provider as "teams" | "meet", url: session.meetingUrl };
+  return { provider: "jitsi" as const, url: jitsiUrl(session.roomName, { displayName }) };
+}
+
 export function isPresent(lastSeenAt: Date, now = new Date()) {
   return now.getTime() - lastSeenAt.getTime() <= PRESENT_WINDOW_MS;
 }

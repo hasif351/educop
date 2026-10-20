@@ -6,6 +6,7 @@ import type { LiveState } from "@/lib/live";
 import { Icon } from "@/components/icons";
 import { createPoll, endLive, lowerHand, moderateChat, setPollOpen, teacherChat } from "@/app/teacher/live/actions";
 import { joinLive, setHand, studentChat, votePoll } from "@/app/student/live/actions";
+import { PROVIDER_LABEL, type VideoProvider } from "@/lib/live-utils";
 
 const POLL_MS = 5000;
 const PRESETS = [
@@ -14,11 +15,12 @@ const PRESETS = [
 ];
 
 /**
- * The live classroom for teacher and student. Video is the embedded Jitsi room;
- * attendance, hands, chat and polls are ours and refresh by polling every 5 s.
+ * The live classroom for teacher and student. Video is either Microsoft Teams or
+ * Google Meet (opened in its own tab) or the embedded built-in room; attendance,
+ * hands, chat and polls are ours and refresh by polling every 5 s.
  */
-export function LiveRoom({ id, role, title, className, host, videoUrl, initial }: {
-  id: string; role: "TEACHER" | "STUDENT"; title: string; className: string; host: string; videoUrl: string; initial: LiveState;
+export function LiveRoom({ id, role, title, className, host, video, initial }: {
+  id: string; role: "TEACHER" | "STUDENT"; title: string; className: string; host: string; video: { provider: VideoProvider; url: string }; initial: LiveState;
 }) {
   const T = role === "TEACHER";
   const router = useRouter();
@@ -49,6 +51,8 @@ export function LiveRoom({ id, role, title, className, host, videoUrl, initial }
   const showVideo = live && (T || state.me.joined);
   const hands = state.people.filter((p) => p.hand).length;
   const openPoll = state.polls.find((p) => p.open);
+  const external = video.provider !== "jitsi";
+  const service = PROVIDER_LABEL[video.provider];
 
   return (
     <div className="flex flex-col gap-4">
@@ -72,13 +76,23 @@ export function LiveRoom({ id, role, title, className, host, videoUrl, initial }
       </div>
 
       <p className="flex gap-2 rounded-lg bg-warn-soft p-3 text-sm"><Icon name="info" className="mt-0.5 text-warn" />
-        <span>Video runs on the free public Jitsi Meet service for this pilot, so calls may be time-limited and the host may be asked to sign in to Jitsi. A school deployment would use a dedicated video provider under a data-processing agreement. Attendance, hands, chat and polls are stored by Educop. Turning your camera on is always optional.</span>
+        <span>{external
+          ? `Video runs in ${service} and opens in a new tab. Keep this page open for hands, chat and polls. Attendance is recorded when you join from here. Turning your camera on is always optional.`
+          : "Video runs on the free public Jitsi Meet service for this pilot, so calls may be time-limited and the host may be asked to sign in to Jitsi. Attendance, hands, chat and polls are stored by Educop. Turning your camera on is always optional."}</span>
       </p>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-3">
-          {showVideo ? (
-            <iframe src={videoUrl} title={`Video for ${title}`} className="aspect-video w-full rounded-card border border-line bg-black"
+          {showVideo && external ? (
+            <div className="grid aspect-video w-full place-items-center rounded-card border border-line bg-[#1A2B3D] p-6 text-center text-white">
+              <div className="flex flex-col items-center gap-3">
+                <b className="text-lg">{T ? `Your class is open in ${service}` : `You're in class`}</b>
+                <a className="btn-primary" href={video.url} target="_blank" rel="noopener noreferrer">Open {service} <Icon name="video" /></a>
+                <span className="text-xs opacity-80">Opens in a new tab. Come back here for chat and polls.</span>
+              </div>
+            </div>
+          ) : showVideo ? (
+            <iframe src={video.url} title={`Video for ${title}`} className="aspect-video w-full rounded-card border border-line bg-black"
               allow="camera; microphone; display-capture; fullscreen; autoplay; clipboard-write" referrerPolicy="no-referrer" />
           ) : (
             <div className="grid aspect-video w-full place-items-center rounded-card border border-line bg-[#1A2B3D] p-6 text-center text-white">
@@ -86,7 +100,12 @@ export function LiveRoom({ id, role, title, className, host, videoUrl, initial }
                 <div className="flex flex-col items-center gap-2"><Icon name="clock" className="text-3xl" /><b>Your teacher hasn&apos;t started the class yet.</b><span className="text-sm opacity-80">This page checks every few seconds. Stay here and the Join button will appear.</span></div>
               ) : live && !T ? (
                 <div className="flex flex-col items-center gap-3"><b className="text-lg">{title} is live</b>
-                  <button className="btn-primary" disabled={pending} onClick={() => act(async () => { const r = await joinLive(id); if (r?.error) setNotice(r.error); else joined.current = true; })}>Join class <Icon name="video" /></button>
+                  <button className="btn-primary" disabled={pending} onClick={() => act(async () => {
+                    // Open the tab inside the click so pop-up blockers allow it, then record attendance.
+                    const tab = external ? window.open(video.url, "_blank", "noopener,noreferrer") : null;
+                    const r = await joinLive(id);
+                    if (r?.error) { tab?.close(); setNotice(r.error); } else joined.current = true;
+                  })}>Join class <Icon name="video" /></button>
                   <span className="text-xs opacity-80">Your attendance is recorded when you join.</span>
                 </div>
               ) : <b>The class has ended.</b>}

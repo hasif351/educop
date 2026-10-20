@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { studentLiveSessions } from "@/lib/live";
 import { Chip, Empty, PageHeader, fmtDate, fmtTime } from "@/components/ui";
+import { PROVIDER_LABEL, type VideoProvider } from "@/lib/live-utils";
 
 export const metadata = { title: "Live class" };
 
@@ -13,7 +14,7 @@ export default async function StudentLive() {
   const past = sessions.filter((x) => x.status === "ENDED").reverse().slice(0, 10);
   const row = (x: (typeof sessions)[number], cta: React.ReactNode) => (
     <li key={x.id} className="flex flex-wrap items-center gap-3 border-t border-line py-3 first:border-0 first:pt-0">
-      <div className="min-w-0 flex-1"><b>{x.title}</b><div className="text-sm text-muted">{x.cls?.name} · {x.teacher.name} · {fmtDate(x.startsAt)} {fmtTime(x.startsAt)}</div></div>
+      <div className="min-w-0 flex-1"><b>{x.title}</b><div className="text-sm text-muted">{x.cls?.name} · {x.teacher.name} · {fmtDate(x.startsAt)} {fmtTime(x.startsAt)} · {PROVIDER_LABEL[x.provider as VideoProvider] ?? x.provider}</div></div>
       {cta}
     </li>
   );

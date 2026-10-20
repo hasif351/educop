@@ -1,0 +1,316 @@
+// Educop MVP data model.
+// Multi-school: every school-owned row carries schoolId, and all reads/writes
+// go through src/lib/tenant.ts which scopes queries to the signed-in user's school.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  PARENT
+  SCHOOL_ADMIN
+  SUPER_ADMIN
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum QuestionType {
+  MCQ
+  SHORT
+}
+
+enum SubmissionStatus {
+  IN_PROGRESS
+  SUBMITTED
+  GRADED
+}
+
+enum RecommendationStatus {
+  PENDING_REVIEW
+  ACTIVE
+  DONE
+  DISMISSED
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  schools   School[]
+}
+
+model School {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  slug           String       @unique
+  city           String?
+  curriculum     String       @default("British")
+  timezone       String       @default("Asia/Dubai")
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+
+  users         User[]
+  subjects      Subject[]
+  classes       Class[]
+  lessons       Lesson[]
+  assignments   Assignment[]
+  academicYears AcademicYear[]
+  auditLogs     AuditLog[]
+}
+
+model AcademicYear {
+  id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  name      String
+  startsOn  DateTime
+  endsOn    DateTime
+  isCurrent Boolean  @default(false)
+  classes   Class[]
+
+  @@index([schoolId])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  // Null only for SUPER_ADMIN, who works across schools.
+  schoolId     String?
+  school       School?  @relation(fields: [schoolId], references: [id])
+  role         Role
+  email        String   @unique
+  name         String
+  passwordHash String
+  gradeLevel   Int? // students only: 0 = KG2, -1 = KG1, 1..12
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  lastLoginAt  DateTime?
+
+  teaching        Class[]          @relation("ClassTeacher")
+  enrollments     Enrollment[]
+  childrenLinks   ParentStudent[]  @relation("ParentLink")
+  parentLinks     ParentStudent[]  @relation("ChildLink")
+  lessonProgress  LessonProgress[]
+  submissions     Submission[]
+  recommendations Recommendation[]
+  createdLessons  Lesson[]         @relation("LessonAuthor")
+  createdAssigns  Assignment[]     @relation("AssignmentAuthor")
+  auditLogs       AuditLog[]
+
+  @@index([schoolId, role])
+}
+
+model ParentStudent {
+  parentId   String
+  studentId  String
+  parent     User     @relation("ParentLink", fields: [parentId], references: [id])
+  student    User     @relation("ChildLink", fields: [studentId], references: [id])
+  verified   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@id([parentId, studentId])
+}
+
+model Subject {
+  id       String  @id @default(cuid())
+  schoolId String
+  school   School  @relation(fields: [schoolId], references: [id])
+  name     String
+  code     String
+  color    String  @default("blue")
+  classes  Class[]
+
+  @@unique([schoolId, code])
+}
+
+model Class {
+  id             String        @id @default(cuid())
+  schoolId       String
+  school         School        @relation(fields: [schoolId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear  @relation(fields: [academicYearId], references: [id])
+  subjectId      String
+  subject        Subject       @relation(fields: [subjectId], references: [id])
+  teacherId      String
+  teacher        User          @relation("ClassTeacher", fields: [teacherId], references: [id])
+  name           String // e.g. "5B Mathematics"
+  gradeLevel     Int
+  enrollments    Enrollment[]
+  lessons        Lesson[]
+  assignments    Assignment[]
+
+  @@index([schoolId])
+  @@index([teacherId])
+}
+
+model Enrollment {
+  classId   String
+  studentId String
+  class     Class    @relation(fields: [classId], references: [id])
+  student   User     @relation(fields: [studentId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@id([classId, studentId])
+  @@index([studentId])
+}
+
+// A lesson follows the 8-part structure from the spec. Knowledge-check
+// questions are stored as JSON: [{ prompt, options[], answerIndex, hint, explanation }].
+model Lesson {
+  id             String        @id @default(cuid())
+  schoolId       String
+  school         School        @relation(fields: [schoolId], references: [id])
+  classId        String
+  class          Class         @relation(fields: [classId], references: [id])
+  authorId       String
+  author         User          @relation("LessonAuthor", fields: [authorId], references: [id])
+  title          String
+  outcomeCode    String?
+  scheduledFor   DateTime
+  durationMin    Int           @default(30)
+  objectives     String[]
+  introduction   String
+  explanation    String
+  activity       String
+  knowledgeCheck Json
+  worksheet      String
+  nextActivity   String
+  status         ContentStatus @default(DRAFT)
+  publishedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  progress    LessonProgress[]
+  assignments Assignment[]
+
+  @@index([schoolId, classId, scheduledFor])
+}
+
+model LessonProgress {
+  lessonId       String
+  studentId      String
+  lesson         Lesson    @relation(fields: [lessonId], references: [id])
+  student        User      @relation(fields: [studentId], references: [id])
+  completedSteps Int[]
+  checkCorrect   Int       @default(0)
+  checkTotal     Int       @default(0)
+  completedAt    DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  @@id([lessonId, studentId])
+}
+
+model Assignment {
+  id           String        @id @default(cuid())
+  schoolId     String
+  school       School        @relation(fields: [schoolId], references: [id])
+  classId      String
+  class        Class         @relation(fields: [classId], references: [id])
+  lessonId     String?
+  lesson       Lesson?       @relation(fields: [lessonId], references: [id])
+  authorId     String
+  author       User          @relation("AssignmentAuthor", fields: [authorId], references: [id])
+  title        String
+  instructions String        @default("")
+  dueAt        DateTime
+  // Percent deducted per day late; null = late work not accepted.
+  latePenaltyPerDay Int?     @default(10)
+  maxLateDays  Int           @default(3)
+  status       ContentStatus @default(DRAFT)
+  publishedAt  DateTime?
+  createdAt    DateTime      @default(now())
+
+  questions   Question[]
+  submissions Submission[]
+
+  @@index([schoolId, classId, dueAt])
+}
+
+model Question {
+  id           String       @id @default(cuid())
+  assignmentId String
+  assignment   Assignment   @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  order        Int
+  type         QuestionType
+  prompt       String
+  options      String[]
+  answerIndex  Int? // MCQ only
+  points       Int          @default(1)
+  answers      Answer[]
+}
+
+model Submission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id])
+  studentId    String
+  student      User             @relation(fields: [studentId], references: [id])
+  status       SubmissionStatus @default(IN_PROGRESS)
+  submittedAt  DateTime?
+  daysLate     Int              @default(0)
+  rawScore     Float?
+  maxScore     Float?
+  finalScore   Float? // after late penalty
+  feedback     String?
+  gradedAt     DateTime?
+  answers      Answer[]
+
+  @@unique([assignmentId, studentId])
+}
+
+model Answer {
+  id           String     @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     Question   @relation(fields: [questionId], references: [id])
+  choiceIndex  Int?
+  text         String?
+  autoScore    Float?
+  teacherScore Float?
+
+  @@unique([submissionId, questionId])
+}
+
+// Rule-based in the MVP (see src/lib/recommend.ts). Every recommendation
+// stores the evidence behind it so it can be explained and reviewed.
+model Recommendation {
+  id          String               @id @default(cuid())
+  schoolId    String
+  studentId   String
+  student     User                 @relation(fields: [studentId], references: [id])
+  kind        String // REVIEW | PRACTICE | CHALLENGE
+  title       String
+  evidence    String[]
+  lessonId    String?
+  status      RecommendationStatus @default(ACTIVE)
+  createdAt   DateTime             @default(now())
+
+  @@index([schoolId, studentId, status])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  schoolId  String?
+  school    School?  @relation(fields: [schoolId], references: [id])
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String
+  target    String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([schoolId, createdAt])
+}

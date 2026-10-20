@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens (RGB triplets so Tailwind can apply opacity). Same palette as the UI preview. */
+:root {
+  --bg: 243 247 250; --surface: 255 255 255; --surface-2: 235 241 246; --line: 214 224 234;
+  --fg: 14 33 51; --muted: 85 105 126;
+  --blue: 28 92 203; --blue-soft: 227 236 251; --teal: 10 135 128; --teal-soft: 217 241 238;
+  --good: 24 121 74; --good-soft: 221 242 230; --warn: 154 90 0; --warn-soft: 251 238 214;
+  --bad: 189 54 54; --bad-soft: 250 226 226; --on-brand: 255 255 255;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: 10 21 32; --surface: 16 29 42; --surface-2: 22 38 54; --line: 36 56 76;
+    --fg: 229 237 245; --muted: 147 167 187;
+    --blue: 106 162 255; --blue-soft: 23 48 79; --teal: 60 198 188; --teal-soft: 18 58 58;
+    --good: 76 201 138; --good-soft: 20 56 38; --warn: 240 178 74; --warn-soft: 58 44 18;
+    --bad: 242 122 122; --bad-soft: 62 28 31; --on-brand: 8 22 38;
+    color-scheme: dark;
+  }
+}
+
+@layer base {
+  body { @apply bg-bg text-fg font-sans antialiased; }
+  h1, h2, h3 { @apply font-display font-semibold tracking-tight; text-wrap: balance; }
+  :focus-visible { outline: 3px solid rgb(var(--blue)); outline-offset: 2px; border-radius: 6px; }
+}
+
+@layer components {
+  .card { @apply bg-surface border border-line rounded-card p-5 shadow-sm flex flex-col gap-3 min-w-0; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-bold hover:bg-surface-2 disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn-primary { @apply btn bg-brand border-brand hover:bg-brand hover:brightness-110; color: rgb(var(--on-brand)); }
+  .btn-teal { @apply btn bg-teal border-teal hover:bg-teal hover:brightness-110; color: rgb(var(--on-brand)); }
+  .btn-sm { @apply px-2.5 py-1 text-xs; }
+  .input { @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm; }
+  .label { @apply flex flex-col gap-1.5 text-sm font-bold; }
+  .chip { @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-bold text-muted; }
+  .eyebrow { @apply text-xs font-bold uppercase tracking-wider text-muted; }
+  .tnum { font-variant-numeric: tabular-nums; }
+}

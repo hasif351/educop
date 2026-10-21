@@ -217,7 +217,9 @@ test("virtual classroom: schedule, start, join, hands, chat, polls, end and repo
   await expect(sara.locator('iframe[src^="https://meet.jit.si/educop-"]')).toHaveCount(1);
   const head = await sara.request.get(liveUrl);
   expect(head.headers()["permissions-policy"]).toContain('camera=(self "https://meet.jit.si")');
-  expect((await sara.request.get("/teacher/live")).headers()["permissions-policy"]).toContain("camera=()");
+  // Every teacher and student page carries it (the app moves between pages without reloading); public pages don't.
+  expect((await sara.request.get("/teacher/live")).headers()["permissions-policy"]).toContain('camera=(self "https://meet.jit.si")');
+  expect((await sara.request.get("/api/health")).headers()["permissions-policy"]).toContain("camera=()");
 
   await layla.getByRole("button", { name: "Join class" }).click({ timeout: 15_000 });
   await expect(layla.locator('iframe[src^="https://meet.jit.si/educop-"]')).toHaveCount(1);

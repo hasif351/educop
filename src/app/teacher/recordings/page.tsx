@@ -13,10 +13,10 @@ export default async function TeacherRecordings() {
   return (
     <>
       <PageHeader eyebrow="Teach anytime" title="Recorded classes" sub="Share class videos with captions, chapters and questions, and see how far students watch."
-        actions={<Link className="btn-primary" href="/teacher/recordings/new"><Icon name="plus" /> New recording</Link>} />
+        actions={<div className="flex flex-wrap gap-2"><Link className="btn" href="/teacher/recordings/studio"><Icon name="record" /> Record in studio</Link><Link className="btn-primary" href="/teacher/recordings/new"><Icon name="plus" /> New recording</Link></div>} />
       <section className="card overflow-x-auto" aria-labelledby="h-recs">
         <h2 id="h-recs" className="text-lg">Your recordings</h2>
-        {recs.length === 0 ? <Empty title="No recordings yet" body="Upload a class video or paste a link to one. After a live class, use “Add the class recording” on its summary." href="/teacher/recordings/new" cta="New recording" /> : (
+        {recs.length === 0 ? <Empty title="No recordings yet" body="Record one in the studio with your camera, screen and whiteboard, or upload a class video. After a live class, use “Add the class recording” on its summary." href="/teacher/recordings/new" cta="New recording" /> : (
           <table className="w-full text-sm">
             <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-muted"><th className="py-2 pr-2">Recording</th><th className="p-2">Status</th><th className="p-2">Views</th><th className="p-2">Avg watched</th><th className="p-2">Completed</th></tr></thead>
             <tbody>

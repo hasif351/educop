@@ -526,7 +526,8 @@ model LiveSession {
   durationMin Int       @default(40)
   status      String    @default("SCHEDULED") // SCHEDULED | LIVE | ENDED
   roomName    String    @unique
-  // "teams" or "meet": the teacher pasted a meeting link; "jitsi": the built-in embedded room.
+  // "teams" or "meet": the teacher pasted a meeting link; "jitsi": the embedded Jitsi room;
+  // "educop": Educop live (LiveKit), room = roomName.
   provider    String    @default("jitsi")
   meetingUrl  String?
   startedAt   DateTime?
@@ -549,6 +550,8 @@ model LiveAttendance {
   joinedAt   DateTime    @default(now())
   lastSeenAt DateTime    @default(now())
   handRaised Boolean     @default(false)
+  // Educop live: the teacher invited this student to use their mic and camera.
+  canSpeak   Boolean     @default(false)
 
   @@id([sessionId, userId])
 }

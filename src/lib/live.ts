@@ -67,13 +67,13 @@ export async function liveState(s: S, sessionId: string) {
   const now = new Date();
   const people = roster.map(({ student }) => {
     const a = attendance.find((x) => x.userId === student.id);
-    return { id: student.id, name: student.name, joined: !!a, present: !!a && isPresent(a.lastSeenAt, now), hand: !!a && a.handRaised && isPresent(a.lastSeenAt, now) };
+    return { id: student.id, name: student.name, joined: !!a, present: !!a && isPresent(a.lastSeenAt, now), hand: !!a && a.handRaised && isPresent(a.lastSeenAt, now), speaking: !!a?.canSpeak };
   });
   const mine = attendance.find((a) => a.userId === s.userId);
   return {
     status: session.status as "SCHEDULED" | "LIVE" | "ENDED",
     startedAt: session.startedAt?.toISOString() ?? null,
-    me: { joined: !!mine, hand: !!mine?.handRaised },
+    me: { joined: !!mine, hand: !!mine?.handRaised, canSpeak: !!mine?.canSpeak },
     // Students see classmates who are here now; teachers see the whole roster.
     people: teacher ? people : people.filter((p) => p.present).map((p) => ({ ...p, name: shortName(p.name) })),
     chat: chat.reverse().map((c) => ({

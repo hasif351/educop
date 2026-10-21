@@ -9,6 +9,7 @@ import { Icon } from "@/components/icons";
 import { LiveRoom } from "@/components/live/LiveRoom";
 import { AttendanceReport } from "@/components/live/AttendanceReport";
 import { startLive } from "../actions";
+import { livekitEnabled } from "@/lib/livekit";
 
 export const metadata = { title: "Virtual classroom" };
 
@@ -39,11 +40,12 @@ export default async function TeacherLiveSession({ params }: { params: Promise<{
             <li>Students join from <b>Live class</b> in their menu. Attendance is recorded when they join.</li>
             <li>Chat messages with phone numbers, emails or links are held until you approve them.</li>
             <li>Run quick polls and see results live. Students see results when you end a poll.</li>
+            {session.provider === "educop" && <li>Educop live: students watch and listen. Invite a student to speak from <b>People</b>. <b>Record</b> saves the class in your browser for free.</li>}
           </ul>
         </section>
         <section className="card">
           <h2 className="text-lg">Video</h2>
-          <MeetingLinkForm id={session.id} provider={session.provider as VideoProvider} meetingUrl={session.meetingUrl ?? ""} />
+          <MeetingLinkForm id={session.id} provider={session.provider as VideoProvider} meetingUrl={session.meetingUrl ?? ""} educopEnabled={livekitEnabled()} />
         </section>
         <section className="card">
           <h2 className="text-lg">Secure join link</h2>
@@ -56,6 +58,6 @@ export default async function TeacherLiveSession({ params }: { params: Promise<{
 
   return (
     <LiveRoom id={session.id} role="TEACHER" title={session.title} className={session.cls.name} host={session.teacher.name}
-      video={videoFor(session, s.name)} initial={await liveState(s, session.id)} />
+      video={videoFor(session, s.name)} initial={await liveState(s, session.id)} uploadEnabled={!!process.env.BLOB_READ_WRITE_TOKEN} />
   );
 }

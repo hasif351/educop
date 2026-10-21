@@ -4,9 +4,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import type { LiveState } from "@/lib/live";
 import { Icon } from "@/components/icons";
-import { createPoll, endLive, lowerHand, moderateChat, setPollOpen, teacherChat } from "@/app/teacher/live/actions";
+import { createPoll, endLive, lowerHand, moderateChat, setPollOpen, setSpeaking, teacherChat } from "@/app/teacher/live/actions";
 import { joinLive, setHand, studentChat, votePoll } from "@/app/student/live/actions";
 import { PROVIDER_LABEL, type VideoProvider } from "@/lib/live-utils";
+import { EducopStage } from "./EducopStage";
 
 const POLL_MS = 5000;
 const PRESETS = [
@@ -15,12 +16,15 @@ const PRESETS = [
 ];
 
 /**
- * The live classroom for teacher and student. Video is either Microsoft Teams or
- * Google Meet (opened in its own tab) or the embedded built-in room; attendance,
- * hands, chat and polls are ours and refresh by polling every 5 s.
+ * The live classroom for teacher and student. Video is Educop live (our own
+ * stage on LiveKit), Microsoft Teams or Google Meet (opened in its own tab) or
+ * the embedded Jitsi room; attendance, hands, chat and polls are ours and
+ * refresh by polling every 5 s.
  */
-export function LiveRoom({ id, role, title, className, host, video, initial }: {
+export function LiveRoom({ id, role, title, className, host, video, initial, uploadEnabled = false }: {
   id: string; role: "TEACHER" | "STUDENT"; title: string; className: string; host: string; video: { provider: VideoProvider; url: string }; initial: LiveState;
+  /** Teacher, Educop live: Vercel Blob is connected, so browser recordings upload straight away. */
+  uploadEnabled?: boolean;
 }) {
   const T = role === "TEACHER";
   const router = useRouter();
@@ -28,6 +32,7 @@ export function LiveRoom({ id, role, title, className, host, video, initial }: {
   const [panel, setPanel] = useState<"people" | "chat" | "poll">(T ? "people" : "chat");
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [recordingBusy, setRecordingBusy] = useState(false);
   const joined = useRef(initial.me.joined);
   joined.current = state.me.joined;
 
@@ -51,7 +56,8 @@ export function LiveRoom({ id, role, title, className, host, video, initial }: {
   const showVideo = live && (T || state.me.joined);
   const hands = state.people.filter((p) => p.hand).length;
   const openPoll = state.polls.find((p) => p.open);
-  const external = video.provider !== "jitsi";
+  const educop = video.provider === "educop";
+  const external = video.provider === "teams" || video.provider === "meet";
   const service = PROVIDER_LABEL[video.provider];
 
   return (
@@ -70,20 +76,26 @@ export function LiveRoom({ id, role, title, className, host, video, initial }: {
               <Icon name="hand" /> {state.me.hand ? "Lower hand" : "Raise hand"}
             </button>
           )}
-          {T && live && <button className="btn border-bad text-bad" disabled={pending} onClick={() => { if (confirm("End the class for everyone?")) act(() => endLive(id)); }}><Icon name="door" /> End class</button>}
+          {T && live && <button className="btn border-bad text-bad" disabled={pending || recordingBusy} title={recordingBusy ? "Stop the recording and let it finish uploading first" : undefined}
+            onClick={() => { if (confirm("End the class for everyone?")) act(() => endLive(id)); }}><Icon name="door" /> End class</button>}
           {!T && <Link className="btn" href="/student/live"><Icon name="door" /> Leave</Link>}
         </div>
       </div>
 
       <p className="flex gap-2 rounded-lg bg-warn-soft p-3 text-sm"><Icon name="info" className="mt-0.5 text-warn" />
-        <span>{external
+        <span>{educop
+          ? `Video runs in Educop live (beta). ${T ? "Students watch and listen; invite a student to speak from People." : "Your teacher can invite you to speak; turning your camera on is always optional."} Attendance, hands, chat and polls are stored by Educop.`
+          : external
           ? `Video runs in ${service} and opens in a new tab. Keep this page open for hands, chat and polls. Attendance is recorded when you join from here. Turning your camera on is always optional.`
           : "Video runs on the free public Jitsi Meet service for this pilot, so calls may be time-limited and the host may be asked to sign in to Jitsi. Attendance, hands, chat and polls are stored by Educop. Turning your camera on is always optional."}</span>
       </p>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-3">
-          {showVideo && external ? (
+          {showVideo && educop ? (
+            <EducopStage id={id} role={role} title={title} uploadEnabled={uploadEnabled} onBusy={setRecordingBusy}
+              names={T ? Object.fromEntries(state.people.map((p) => [p.id, p.name])) : undefined} />
+          ) : showVideo && external ? (
             <div className="grid aspect-video w-full place-items-center rounded-card border border-line bg-[#1A2B3D] p-6 text-center text-white">
               <div className="flex flex-col items-center gap-3">
                 <b className="text-lg">{T ? `Your class is open in ${service}` : `You're in class`}</b>
@@ -121,7 +133,8 @@ export function LiveRoom({ id, role, title, className, host, video, initial }: {
                 className={`flex-1 rounded-lg px-2 py-1.5 text-sm font-bold ${panel === k ? "bg-brand-soft text-brand" : "text-muted hover:bg-surface-2"}`}>{l}</button>
             ))}
           </div>
-          {panel === "people" && <People state={state} T={T} onLower={(uid) => act(() => lowerHand(id, uid))} />}
+          {panel === "people" && <People state={state} T={T} speak={T && educop && live} onLower={(uid) => act(() => lowerHand(id, uid))}
+            onSpeak={(uid, on) => act(async () => { const r = await setSpeaking(id, uid, on); setNotice(r.error ?? r.ok ?? null); })} />}
           {panel === "chat" && <Chat state={state} T={T} canChat={live && (T || state.me.joined)} pending={pending}
             onSend={(body) => new Promise<string | null>((resolve) => start(async () => {
               const r = T ? await teacherChat(id, body) : await studentChat(id, body);
@@ -147,7 +160,9 @@ function Timer({ since }: { since: string }) {
   return <span className="chip tnum" aria-label={`Running for ${Math.floor(s / 60)} minutes`}>{txt}</span>;
 }
 
-function People({ state, T, onLower }: { state: LiveState; T: boolean; onLower: (id: string) => void }) {
+function People({ state, T, speak, onLower, onSpeak }: {
+  state: LiveState; T: boolean; speak: boolean; onLower: (id: string) => void; onSpeak: (id: string, on: boolean) => void;
+}) {
   const here = state.people.filter((p) => p.present);
   return (
     <div className="flex flex-col gap-2 text-sm">
@@ -159,11 +174,16 @@ function People({ state, T, onLower }: { state: LiveState; T: boolean; onLower: 
             <span className="min-w-0 flex-1 truncate">{p.name}</span>
             {T && <span className="text-xs text-muted">{p.present ? "Here" : p.joined ? "Left" : "Not joined"}</span>}
             {p.hand && <span title="Hand raised" aria-label="Hand raised">✋</span>}
+            {p.speaking && <span title="Can speak" aria-label="Can speak"><Icon name="mic" className="text-teal" /></span>}
             {T && p.hand && <button className="btn btn-sm" onClick={() => onLower(p.id)}>Lower</button>}
+            {speak && p.joined && (p.speaking
+              ? <button className="btn btn-sm" onClick={() => onSpeak(p.id, false)} aria-label={`Stop ${p.name} speaking`}>Stop</button>
+              : p.present && <button className="btn btn-sm" onClick={() => onSpeak(p.id, true)} aria-label={`Invite ${p.name} to speak`}>Invite to speak</button>)}
           </li>
         ))}
       </ul>
       {T && <p className="text-xs text-muted">Attendance is recorded automatically when students join. Camera off is never counted as absence.</p>}
+      {speak && <p className="text-xs text-muted">Invited students can use their microphone, and their camera if they choose. Stop takes it back straight away.</p>}
     </div>
   );
 }

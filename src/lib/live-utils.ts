@@ -20,8 +20,8 @@ export function jitsiUrl(roomName: string, opts: { displayName: string }) {
   return `https://meet.jit.si/${encodeURIComponent(roomName)}#${cfg.join("&")}`;
 }
 
-export type VideoProvider = "teams" | "meet" | "jitsi";
-export const PROVIDER_LABEL: Record<VideoProvider, string> = { teams: "Microsoft Teams", meet: "Google Meet", jitsi: "Built-in room" };
+export type VideoProvider = "teams" | "meet" | "jitsi" | "educop";
+export const PROVIDER_LABEL: Record<VideoProvider, string> = { educop: "Educop live (beta)", teams: "Microsoft Teams", meet: "Google Meet", jitsi: "Built-in room" };
 
 /**
  * Checks a pasted meeting link and says which service it belongs to. Only
@@ -38,8 +38,12 @@ export function parseMeetingUrl(raw: string): { provider: "teams" | "meet"; url:
   return null;
 }
 
-/** What the classroom shows: the embedded built-in room, or a button that opens Teams or Meet. */
-export function videoFor(session: { provider: string; meetingUrl: string | null; roomName: string }, displayName: string) {
+/**
+ * What the classroom shows: Educop live (the stage connects with its own token,
+ * so there's no URL), the embedded Jitsi room, or a button that opens Teams or Meet.
+ */
+export function videoFor(session: { provider: string; meetingUrl: string | null; roomName: string }, displayName: string): { provider: VideoProvider; url: string } {
+  if (session.provider === "educop") return { provider: "educop", url: "" };
   if ((session.provider === "teams" || session.provider === "meet") && session.meetingUrl) return { provider: session.provider as "teams" | "meet", url: session.meetingUrl };
   return { provider: "jitsi" as const, url: jitsiUrl(session.roomName, { displayName }) };
 }

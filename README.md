@@ -18,7 +18,7 @@ Educop is an AI-powered KG–12 learning platform. This app covers the MVP core 
 - **Teachers:** an AI assistant that drafts lessons, quizzes, feedback, differentiated tasks and parent notes for the teacher to review; student progress with an objective heatmap, plus class skills and wellbeing summaries (anonymous, minimum group of 5); recommendation review with approve, modify, dismiss and manual suggestions.
 - **Everyone:** a sidebar app shell, in-app notifications for real events, and settings and privacy (profile, password, accessibility, notification choices, parent consents per child, download my data, deletion request).
 - **Parent–teacher messages:** each conversation is about one child. Messages containing contact details are held for moderation.
-- **Virtual classroom:** schedule, start and end live classes, with attendance, raise hand, moderated chat and live polls. Video uses an embedded Jitsi Meet room.
+- **Virtual classroom:** schedule, start and end live classes, with attendance, raise hand, moderated chat and live polls. Video runs in Educop live (beta, on LiveKit), Microsoft Teams, Google Meet or an embedded Jitsi Meet room.
 - **Recorded classes:** teachers share class videos (uploaded, linked or recorded in Teams/Meet and uploaded afterwards) with captions, chapters and in-video questions. Students watch in a custom player and their real watching is tracked; teachers see watched %, completion, question results and where students stop watching.
 - **Parent portal:** a child switcher and per-child overview, plus a home learning page with a "we did this" tick.
 - **School admin:** overview, people (add, deactivate, parent links, CSV roster import with a dry run), classes and subjects, lesson approvals, reports with CSV export, moderation, and school settings.
@@ -93,6 +93,7 @@ src/lib/data.ts             ALL reads: scoped by schoolId + relationship (enroll
 src/lib/grading.ts          pure marking rules (auto-mark, late days, penalty, totals)
 src/lib/recommend.ts        pure recommendation rules with evidence
 src/lib/recordings.ts       pure recorded-class rules: video links, watched ranges, captions
+src/lib/livekit*.ts         Educop live: who may do what (pure) and LiveKit tokens and room control (server)
 src/lib/submit.ts           re-scores a submission and triggers recommendations once
 src/app/student/…           dashboard, lessons, lesson player, assignments
 src/app/teacher/…           dashboard, lesson editor, assignment builder, gradebook, marking
@@ -131,6 +132,30 @@ Each suggestion stores its evidence ("Comparing fractions quiz: 4/10 (40%)") and
 - Audit log for sign-ins, content changes, submissions, marking and recommendation decisions
 - Security headers (frame-deny, nosniff, referrer and permissions policy)
 
+## Educop live (beta)
+
+Built-in live video for the virtual classroom, on [LiveKit](https://livekit.io). It's a free test version: it runs on LiveKit Cloud's free plan and records in the teacher's browser, so nothing costs money until you outgrow the free plan.
+
+**Turn it on**
+
+1. Create a free project at [cloud.livekit.io](https://cloud.livekit.io).
+2. In the project's settings, copy the **WebSocket URL** (`wss://…livekit.cloud`) and create an **API key** and **secret**.
+3. In Vercel → Project → Settings → Environment Variables, add `LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` (see `.env.example`), then redeploy.
+
+Without all three, "Educop live (beta)" appears in the video menu but can't be chosen ("Needs a LiveKit account (free plan works)"). Once set, it's the default for new classes.
+
+**Free plan limits.** The free plan includes a monthly allowance of participant-minutes (about 5,000 a month according to third-party sources; one student in a 40-minute class uses 40). Check the [LiveKit pricing page](https://livekit.io/pricing) for the current limits before running real classes.
+
+**How it works**
+
+- `src/lib/livekit.ts` (server only) issues each person their own access token for the class room: 2 hours, identity = user id, name, and a role in the metadata. The API key and secret never reach the browser. `POST /api/live/[id]/token` gives a token only to the class teacher, or to an enrolled student who has pressed "Join class" (so attendance is recorded), and only while the class is live.
+- **Teacher:** camera, microphone, screen share and room admin. **Students:** watch, listen and send data; they can't publish until the teacher presses **Invite to speak** in People (mic, and camera if they choose). **Stop** takes it back and LiveKit removes their tracks. **Mute all** mutes every student mic. The invitation is saved, so a student who reconnects keeps it. Ending the class closes the LiveKit room.
+- The stage (`src/components/live/EducopStage.tsx`) uses `livekit-client` with adaptive stream and dynacast. The main view is the teacher's screen share, or else their camera, with a strip of students who are speaking. It shows connection quality, full screen, a "Click to enable sound" button when the browser blocks autoplay, and reconnecting and can't-connect states. Students can switch on **Low-bandwidth mode**, which turns off camera video but keeps screen share and audio.
+- **Free recording:** the teacher's **Record** button records the main stage (screen share, or else camera, plus the teacher's mic) in their browser as WebM (VP8 and Opus). In Chrome and Edge the recording follows the stage when screen sharing starts or stops. On stop it uploads to Vercel Blob and opens the recording form, prefilled, in a new tab, to save as a draft. Without `BLOB_READ_WRITE_TOKEN` the teacher gets a **Download recording** button and can upload the file later. LiveKit's paid cloud recording (egress) isn't used.
+- Attendance, hands, chat and polls are unchanged: Educop stores them and the page polls every 5 seconds.
+
+**Not tested against a real LiveKit server here.** Unit tests check the token grants by decoding real signed tokens. The end-to-end test runs with fake LiveKit settings. It covers scheduling, the stage's "Couldn't connect to the live video service" state, joining and attendance, invite to speak and the token rules. Real audio and video, screen share, Mute all and recording need a LiveKit project to try out.
+
 ## Recorded classes
 
 Teachers add a recording at **Recorded classes → New recording**, or from an ended live class with "Add the class recording". A recording has a video, optional WebVTT captions (or plain lines like `00:12 text`, converted to WebVTT), chapters and multiple-choice questions at set times.
@@ -148,7 +173,7 @@ AI features call Claude through `src/lib/ai.ts` when `ANTHROPIC_API_KEY` is set 
 
 - Password reset, SSO and MFA for staff
 - Email, push and SMS delivery (preferences are saved; in-app notifications work)
-- A dedicated video provider with recording, breakout rooms and whiteboard (the demo embeds public Jitsi Meet)
+- Breakout rooms and a whiteboard in Educop live, and server-side recording (LiveKit egress, a paid feature)
 - Billing
 - File uploads (private object storage), question banks, rubrics
 - Production rate limiting across several servers (the current limiter is per process)

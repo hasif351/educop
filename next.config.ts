@@ -17,12 +17,13 @@ const nextConfig: NextConfig = {
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],
       },
-      // Live classroom pages embed the Jitsi Meet video room, which needs the
-      // camera, microphone and screen share. Later rules override earlier ones.
+      // Live classroom pages run Educop live (our own page, so 'self') or embed
+      // the Jitsi Meet room; both need the camera, microphone, screen share and
+      // autoplay for class audio. Later rules override earlier ones.
       {
         source: "/:role(teacher|student)/live/:id",
         headers: [
-          { key: "Permissions-Policy", value: 'camera=(self "https://meet.jit.si"), microphone=(self "https://meet.jit.si"), display-capture=(self "https://meet.jit.si"), fullscreen=(self "https://meet.jit.si"), geolocation=()' },
+          { key: "Permissions-Policy", value: 'camera=(self "https://meet.jit.si"), microphone=(self "https://meet.jit.si"), display-capture=(self "https://meet.jit.si"), fullscreen=(self "https://meet.jit.si"), autoplay=(self "https://meet.jit.si"), geolocation=()' },
         ],
       },
     ];

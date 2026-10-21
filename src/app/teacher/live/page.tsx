@@ -7,6 +7,7 @@ import { Chip, Empty, PageHeader, fmtDate, fmtTime } from "@/components/ui";
 import { ScheduleForm } from "@/components/live/ScheduleForm";
 import { startLive } from "./actions";
 import { PROVIDER_LABEL, type VideoProvider } from "@/lib/live-utils";
+import { livekitEnabled } from "@/lib/livekit";
 
 export const metadata = { title: "Virtual classroom" };
 
@@ -41,7 +42,7 @@ export default async function TeacherLive() {
         <section className="card self-start" aria-labelledby="h-schedule">
           <h2 id="h-schedule" className="text-lg">Schedule a live class</h2>
           {classes.length === 0 ? <p className="text-sm text-muted">You don&apos;t teach any classes yet.</p>
-            : <ScheduleForm classes={classes.map((c) => ({ id: c.id, name: c.name }))} defaultStart={toLocalInput(nextHour)} />}
+            : <ScheduleForm classes={classes.map((c) => ({ id: c.id, name: c.name }))} defaultStart={toLocalInput(nextHour)} educopEnabled={livekitEnabled()} />}
           <p className="text-xs text-muted">Only students enrolled in the class and signed in to the school account can join.</p>
         </section>
       </div>

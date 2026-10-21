@@ -45,6 +45,12 @@ const P = {
   shrink: "M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5",
   pip: "M3 5h18v14H3zM12 12h7v5h-7z",
   keyboard: "M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M8 14h8",
+  mic: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3M8 21h8",
+  micOff: "M3 3l18 18M9 9v3a3 3 0 0 0 5.1 2.1M15 9.3V6a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 11.8 5.1M19 11a7 7 0 0 1-.4 2.3M12 18v3M8 21h8",
+  videoOff: "M3 3l18 18M15 10.5l6-3.5v10M3 7h4m4 0h4v6M15 17H3V7",
+  screen: "M3 4h18v12H3zM8 20h8M12 16v4M12 13V7M9 10l3-3 3 3",
+  record: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+  signal: "M4 20v-3M9 20v-7M14 20V9M19 20V4",
 } as const;
 
 export type IconName = keyof typeof P;

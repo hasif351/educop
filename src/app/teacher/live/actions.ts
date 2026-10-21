@@ -9,6 +9,7 @@ import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { liveSessionFor, postChat } from "@/lib/live";
 import { newRoomName, parseMeetingUrl } from "@/lib/live-utils";
+import { closeRoom, livekitEnabled, muteStudents, setSpeaker } from "@/lib/livekit";
 
 export type LiveFormState = { error?: string; ok?: string };
 
@@ -26,12 +27,16 @@ const Schedule = z.object({
   title: z.string().trim().min(3, "Give the class a title.").max(120),
   startsAt: z.string().min(1, "Pick a date and time."),
   durationMin: z.coerce.number().int().min(10, "Classes run 10 to 180 minutes.").max(180, "Classes run 10 to 180 minutes."),
-  provider: z.enum(["teams", "meet", "jitsi"]).default("teams"),
+  provider: z.enum(["educop", "teams", "meet", "jitsi"]).default("teams"),
   meetingUrl: z.string().max(2000).default(""),
 });
 
-/** Teams and Meet classes need a valid join link from that service; the built-in room needs none. */
-function meeting(provider: "teams" | "meet" | "jitsi", raw: string): { provider: string; meetingUrl: string | null } | { error: string } {
+/**
+ * Teams and Meet classes need a valid join link from that service; the built-in
+ * rooms need none. Educop live is offered only when LiveKit is configured.
+ */
+function meeting(provider: "educop" | "teams" | "meet" | "jitsi", raw: string): { provider: string; meetingUrl: string | null } | { error: string } {
+  if (provider === "educop") return livekitEnabled() ? { provider, meetingUrl: null } : { error: "Educop live needs a LiveKit account. Choose another video service." };
   if (provider === "jitsi") return { provider, meetingUrl: null };
   const name = provider === "teams" ? "Microsoft Teams" : "Google Meet";
   const parsed = parseMeetingUrl(raw);
@@ -90,8 +95,10 @@ export async function endLive(id: string) {
   await db.$transaction([
     db.liveSession.update({ where: { id: session.id }, data: { status: "ENDED", endedAt: new Date() } }),
     db.livePoll.updateMany({ where: { sessionId: session.id }, data: { open: false } }),
-    db.liveAttendance.updateMany({ where: { sessionId: session.id }, data: { handRaised: false } }),
+    db.liveAttendance.updateMany({ where: { sessionId: session.id }, data: { handRaised: false, canSpeak: false } }),
   ]);
+  // Educop live: close the video room so nobody stays connected. Best effort.
+  if (session.provider === "educop" && livekitEnabled()) await closeRoom(session.roomName);
   await audit(s, "live.end", session.id);
   revalidatePath("/teacher/live");
   revalidatePath(`/teacher/live/${session.id}`);
@@ -142,4 +149,36 @@ export async function teacherChat(id: string, body: string): Promise<LiveFormSta
   if (session.status !== "LIVE") return { error: "Chat is open while the class is live." };
   await postChat(s, session.id, text.data);
   return {};
+}
+
+/**
+ * Educop live: lets a student use their mic and camera ("Invite to speak"), or
+ * takes it back ("Stop"). Saved first, so a student who reconnects keeps it.
+ */
+export async function setSpeaking(id: string, userId: string, on: boolean): Promise<LiveFormState> {
+  const { s, session } = await own(id);
+  if (session.provider !== "educop") return { error: "Inviting students to speak works in Educop live classes." };
+  if (session.status !== "LIVE") return { error: "Start the class first." };
+  const uid = Id.parse(userId);
+  const allow = z.boolean().parse(on);
+  // Only a student enrolled in this class who has joined it.
+  const r = await db.liveAttendance.updateMany({
+    where: { sessionId: session.id, userId: uid, user: { role: "STUDENT", schoolId: s.schoolId, enrollments: { some: { classId: session.classId } } } },
+    data: allow ? { canSpeak: true, handRaised: false } : { canSpeak: false },
+  });
+  if (!r.count) return { error: "That student hasn't joined the class." };
+  const applied = livekitEnabled() && (await setSpeaker(session.roomName, uid, allow));
+  await audit(s, allow ? "live.speak.invite" : "live.speak.stop", session.id, { studentId: uid });
+  // Not in the video room right now (or LiveKit didn't answer): their next token carries the change.
+  return applied ? {} : { ok: "Saved. It applies when their video reconnects." };
+}
+
+/** Educop live: mutes every student microphone. Students who are invited can unmute themselves. */
+export async function muteAll(id: string): Promise<LiveFormState> {
+  const { s, session } = await own(id);
+  if (session.provider !== "educop" || session.status !== "LIVE" || !livekitEnabled()) return { error: "Mute all works while an Educop live class is running." };
+  const n = await muteStudents(session.roomName);
+  if (n == null) return { error: "Couldn't reach the live video service. Try again." };
+  await audit(s, "live.mute_all", session.id, { muted: n });
+  return { ok: n ? `Muted ${n} ${n === 1 ? "microphone" : "microphones"}.` : "No student microphones were on." };
 }
